@@ -1,0 +1,1 @@
+powershell.exe {Location to files}\AllUnitedToAD\SyncAllUnitedAD.ps1 -simulation:$false -interactive:$false
