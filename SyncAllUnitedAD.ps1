@@ -387,7 +387,7 @@ Function Add-Users
              -Description $Description -EmailAddress $EmailAddress -OfficePhone $phone `
              -UserPrincipalName ($sam + "@" + $dnsroot) `
              -EmployeeID $EmployeeID `
-             -EmployeeNumber $Employeenumber
+             -EmployeeNumber $Employeenumber `
              -AccountPassword $setpass `
             -profilePath "$ProfilePath$sam" -homeDirectory "$HomeDirectory$sam" `
             -homeDrive $homeDrive -Enabled $enabled `
@@ -462,7 +462,7 @@ Function Set-Users #account both in AU and AD
         $pre = Remove-StringLatinCharacters($_.prelastname)
         $GivenName = Remove-StringLatinCharacters($_.firstname)
         $OfficePhone = $($_.phone2).replace("-","")
-        $EmailAddress = $_.email
+        $EmailAddress = ($_.email).trim()
         $Description = $_.value08
         $EmployeeNumber = $_.value08
         
