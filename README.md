@@ -33,6 +33,7 @@ Powershell script to convert export from membership administration to Active Dir
 - 1.0.4 	: 2020-07-28 Fix for phone numbers
 - 1.0.5 	: 2020-07-29 Update fix for more numbers and debug
 - 1.0.5a    : 2020-08-06 Created generalized version for GitHub
+- 1.0.6   : 2020-09-08 Validation of email fixed
 
 # Requirements
 - Domain Controller
