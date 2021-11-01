@@ -49,42 +49,70 @@ Catch
 }
 
 
+#----------------------------------------------------------
+# LOAD STATIC VARIABLES
+#----------------------------------------------------------
 
+function Initialize-StaticVars(){
+    new-variable -Scope global -Option ReadOnly, AllScope -name path         -Value $(Split-Path -parent $MyInvocation.MyCommand.Definition)
+    new-variable -Scope global -Option ReadOnly, AllScope -name date         -Value $(Get-Date)
+    new-variable -Scope global -Option Constant, AllScope -name ADdn         -Value $((Get-ADDomain).DistinguishedName)
+    new-variable -Scope global -Option Constant, AllScope -name dnsroot      -Value $((Get-ADDomain).DNSRoot)
+    new-variable -Scope global -Option ReadOnly, AllScope -name BackupAD     -Value $(join-path $path "\\backup\\AD_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
+    new-variable -Scope global -Option ReadOnly, AllScope -name BackupInput  -Value $(join-path $path "\\backup\\Input_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
+    new-variable -Scope global -Option ReadOnly, AllScope -name log          -Value $(join-path $path "\\log\\$(get-date -Format "yyyy-MM-dd").log")
+}
 
 #----------------------------------------------------------
-#STATIC VARIABLES
+# LOAD Environment configuration
 #----------------------------------------------------------
-$path     = Split-Path -parent $MyInvocation.MyCommand.Definition
-#$newpath  = $path + "\import_create_ad_users.csv" #WIP
-$backup      = $path + "\backup\AD_Backup-$(get-date -Format "yyyy-MM-dd").csv"
-$log      = $path + "\log\$(get-date -Format "yyyy-MM-dd").log"
-$log_del_day = "-30"
-$date     = Get-Date
-$ADdn     = (Get-ADDomain).DistinguishedName
-$dnsroot  = (Get-ADDomain).DNSRoot
 
-$TargetOU = "OU=A,OU=B,OU=C"
-$disabledOU="OU=A,OU=B,OU=C,$addn"
-$contactOU = "OU=A,OU=B,OU=C,$addn"
-$TargetGroup ="CN=D,OU=A,OU=B,OU=C,$addn" 
-#$expires  = $True #WIP
-$enabled  = $True
+<# ADHeaderData
+ChangeThreshold
+ContactOU
+DisabledOU
+Enabled
+Expires
+CSVHeaderData
+HomeDirectory
+HomeDirectory_Direct
+HomeDrive
+InactiveDays
+LogRetentionDays
+PrimaryKeyAD
+PrimaryKeyCSV
+ProfilePath
+ProfilePath_Direct
+TargetDefaultGroups
+TargetOU 
 
-#sync keys of csv and AD
-$primaryKeyCSV = "contactid" #### WARNING!!!! contactid<=>employeeID // value08<=>description/employeeNumber
-$primaryKeyAD = "employeeID" #### WARNING !!
-$changeThreshold = 0.25
+new variable/scope
+Global - Variables created in the global scope are accessible everywhere in a PowerShell process.
+Local - The local scope refers to the current scope, this can be any scope depending on the context.
+Script - Variables created in the script scope are accessible only within the script file or module they are created in.
+Private - Variables created in the private scope cannot be accessed outside the scope they exist in. You can use private scope to create a private version of an item with the same name in another scope.
+A number relative to the current scope (0 through the number of scopes, where 0 is the current scope, 1 is its parent, 2 the parent of the parent scope, and so on). Negative numbers cannot be used.
+Local is the default scope when the scope parameter is not specified.
 
-$homeDrive = "H"
-$homeDirectory = "\\$dnsroot\DFS\Homes\"
-$profilePath =  "\\$dnsroot\DFS\Profiles\"
-#$homeDirectory_direct = "F:\Homes" #WIP
-#$profilePath_direct = "F:\Profiles" #WIP
+new variable/option
+None - Sets no options. None is the default.
+ReadOnly - Can be deleted. Cannot be changed, except by using the Force parameter.
+Private - The variable is available only in the current scope.
+AllScope - The variable is copied to any new scopes that are created.
+Constant - Cannot be deleted or changed. Constant is valid only when you are creating a variable. You cannot change the options of an existing variable to Constant.
+#>
 
-$i        = 1
-#----------------------------------------------------------
-# LOAD Source Dot Scripts
-#----------------------------------------------------------
+function Import-Config() {
+    if(test-path -Path .\.env){
+        $options = Get-Content -Path .\.env | ConvertFrom-Json
+        foreach($opt in $options) {
+            new-variable -name $opt.name -value $opt.value -scope $opt.scope -option $opt.option -description $opt.description
+        }
+    } else {
+        write-log "error" ".env not found. Script will stop!"
+        Exit 1
+    }
+}
 
 . "$path\SetOperations.ps1"
 
