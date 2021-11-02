@@ -804,7 +804,7 @@ Function Move-Users
     $global:usersMove | ForEach-Object {
         $samaccountname=$_.sAMAccountName
         $user=$_.DistinguishedName
-        if($($_.displayName) -ne "_IGNORE_USERS") {
+        if($($_.displayName) -notin "$IgnoreUsersDisplayName") {
 
         $password = ([char[]]([char]32..[char]122) | Sort-Object {Get-Random})[0..50] -join ''
         $setpass = ConvertTo-SecureString -AsPlainText $password -force
