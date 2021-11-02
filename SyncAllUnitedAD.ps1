@@ -39,12 +39,10 @@ Set-StrictMode -Version latest
 #----------------------------------------------------------
 # LOAD ASSEMBLIES AND MODULES
 #----------------------------------------------------------
-Try
-{
+
+Try {
   Import-Module ActiveDirectory -ErrorAction Stop
-}
-Catch
-{
+} Catch {
   write-log "error" "ActiveDirectory Module couldn't be loaded. Script will stop!"
   Exit 1
 }
