@@ -1,3 +1,4 @@
+[CmdletBinding()]
 Param(
     $simulation=$True,
     $interactive=$True
@@ -114,38 +115,72 @@ function Import-Config() {
     }
 }
 
-. "$path\SetOperations.ps1"
+
+
 
 
 #----------------------------------------------------------
 #START FUNCTIONS
 #----------------------------------------------------------
-Function Start-Commands
+
+Function invoke-SyncAllUnitedToAD
 {
-  write-log "info" "STARTED SCRIPT" -disableWrite:$true
-  write-log "warning" "Status of simulation: $Simulation" -disableWrite:$true
-  Get-CSVUsers
-  Get-ADUsers
-      if([math]::Abs($($global:users_CSV).Length-$($global:users_AD).Length)/$($global:users_AD).Length -ge $changeThreshold ) {
-        write-log "warning" "Change in users is over $changeThreshold. Due to safety reasons, this script will stop."
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
+    write-log "info" "STARTED SCRIPT" -disableWrite:$true
+    write-log "warning" "Status of simulation: $Simulation" -disableWrite:$true
+    Get-CSVUsers
+    Get-ADUsers
+        if([math]::Abs($($global:users_CSV).Length-$($global:users_AD).Length)/$($global:users_AD).Length -ge $changeThreshold ) {
+            write-log "warning" "Change in users is over $changeThreshold. Due to safety reasons, this script will stop."
         if(!$($interactive)) {exit 1}
-      }
-  Get-SetResults
-  if($interactive) {Read-Host("Continue?")}
-  Add-Users
-  Set-Users
-  #Move-Users
-  
-  #Clean-Users #WIP
-  
+    }
+    Get-SetResults
+    if($interactive) {Read-Host("Continue?")}
+    Add-Users
+    Set-Users
+    Move-Users
+
+    #Clean-Users
+
 }
 
-Function write-log{
+Function Write-Log{
     Param(
         $loglevel="INFO",
         $data="",
         $disableWrite=$false
     )
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
     $oldWIpref = $WhatIfPreference
     $WhatIfPreference = $false
     $timestamp = $(get-date -Format "yyyy-MM-dd HHmmss")
@@ -158,8 +193,27 @@ Function write-log{
 }
 
 Function Get-filteredDataset{
-    param([object]$dataset, [object]$set=@(), [string]$key)
-    $dataset_size = @($dataset).length
+    param(
+        [object]$dataset,
+        [object]$set=@(),
+        [string]$key
+    )
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
     $set_size = @($set).length
     write-log "info" "There are $dataset_size items that are validated against $set_size"
     # filter dataset with list
@@ -177,11 +231,29 @@ Function Get-filteredDataset{
             }
         }
     return $filteredDataset
-    }
-
+}
 
 Function Get-adfromset{
-    param([object]$set=@(), [string]$key)
+    param(
+        [object]$set=@(),
+        [string]$key
+    )
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
     write-log "info" "There are $(($set).Length) items that are validated against AD"
     $filteredDataset = @()
     $set | ForEach-Object {
@@ -189,21 +261,47 @@ Function Get-adfromset{
         $filteredDataset += $item
         }
     return $filteredDataset
-    }
+}
 
 Function Get-ADUsers
 {
+    <#
+    .DESCRIPTION
 
-    $global:users_AD = Get-ADUser -filter * -Properties displayName,sn,initials,givenName,mail,telephoneNumber,description,sAMAccountName,EmployeeID,Employeenumber -ResultSetSize $null -SearchBase $targetOU
-    $global:users_AD | export-csv -Path $backup -Delimiter ";" 
-    write-log "info" "Created backup of all Users"
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
     write-log "info" "There are $(@($users_AD).Length) users in AD"
-	write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty officephone | group-object length | format-table)"
-    
+
 }
 
 Function Get-CSVUsers
 {
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
   $global:csvfile = Get-ChildItem $path/input/*.csv | Sort-Object LastWriteTime | Select-Object -ExpandProperty Name -last 1
   if("$csvfile".Length -eq 0)
   {
@@ -219,6 +317,22 @@ Function Get-CSVUsers
 
 Function Get-SetResults
 {
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
 
     $temp_set_AD = $users_AD | foreach-object { $_.$primaryKeyAD } #get column of AD field
     new-variable -name set_AD -Value ($temp_set_AD|Sort-Object -unique) #get only unique values
@@ -252,10 +366,30 @@ Function Get-SetResults
 	write-log "info" "To be created users:`n$list_name"
 }
 
-Function get-username 
+Function get-username
 {
-    param([boolean]$new,[string]$firstname,[string]$prelastname,[string]$lastname )
-    
+    param(
+        [boolean]$new,
+        [string]$firstname,
+        [string]$prelastname,
+        [string]$lastname
+    )
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
     $j=0
 	$sam_ori=$null
     $p_lastname = $prelastname.ToLower() + $lastname.ToLower()
@@ -278,7 +412,7 @@ Function get-username
         Try   { $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" -Properties useraccountcontrol }
         Catch {  } #if not found,gives error
         If($exists) {
-            if ($new){ 
+            if ($new){
                 write-log "warning" "$sam already exist"
                 if (!$sam_ori) {$sam_ori = $sam}
                 $j=$j+1
@@ -294,24 +428,44 @@ Function get-username
             $k=$false
             return($sam)
             }
-    }        
+    }
 }
 
-function optimize-phonenumber($no) 
+function Optimize-phonenumber($no)
 {
-
+    <#
+    .DESCRIPTION
+    #Count Name                      Group
 #Count Name                      Group                                                                                                                              
+    #Count Name                      Group
+    #----- ----                      -----
 #----- ----                      -----                                                                                                                              
+    #----- ----                      -----
+    #  895 10                        {0612345678...}
 #  895 10                        {0612345678...}                                                                                
-#    2 13                        {0031712345678, 0011012345678}                                                                                                     
-#    4 14                        {00111234567891}                                                                   
+    #  895 10                        {0612345678...}
+    #    2 13                        {0035712345678, 0013012345678}
+    #    4 14                        {00441234567891}
+    #    3 9                         {061234567 }
 #    3 9                         {061234567 }                                                                                                  
-#    2 11                        {09212345679}                                                                                                         
-#    4 12                        {031612345678, 080123456789, 031687654321}                                                                           
-#    1 15                        {009912345678901}                            
+    #    3 9                         {061234567 }
+    #    2 11                        {03212345679}
+    #    4 12                        {031612345678, 040123456789, 031687654321}
+    #    1 15                        {004912345678901}
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
 
-    
-	
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
+
     $type=$null
     $result = @()
     $var=[string]$no
@@ -346,23 +500,56 @@ function optimize-phonenumber($no)
             Number = $res;
             Type = $type;
             }
-	return $result
+    return $result
 
 
 }
 
 function Remove-StringLatinCharacters
 {
-    PARAM ([string]$String)
+    PARAM (
+        [string]$String
+    )
+    <#
+    .DESCRIPTION
+
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
     [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
 }
 
 Function Add-Users
 {
+    <#
   <# 
-  Create user in AD based on global:usersCreate
+    <#
+    .DESCRIPTION
+     Create user in AD based on global:usersCreate
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
 
-  #>
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>
+
     $i=0
     $global:usersCreate | ForEach-Object {
 
@@ -390,10 +577,10 @@ Function Add-Users
       }
       Else # Valid Full, given, lastname
       {
-       
+
         $location = $TargetOU + ",$($addn)"  # Set the target OU
         $sam = get-username $true $givenname $pre $lastname
-        Try   { 
+        Try   {
           $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" # get any user with saameacocuntanem,
           $exists = Get-ADUser -LDAPFilter "(Description= $Description)" #get any user with specific description, possibly not needed after checking SetFunctions
           $exists = Get-ADUser -LDAPFilter "(employeeID=$employeeID)" #get anny user with specific employeeID, possibly not needed after checking SetFunctions
@@ -401,8 +588,8 @@ Function Add-Users
         Catch { }
         If(!$exists) #does not exist
         {
-          # Set all variables according to the table names in the Excel 
-          # sheet / import CSV. The names can differ in every project, but 
+          # Set all variables according to the table names in the Excel
+          # sheet / import CSV. The names can differ in every project, but
           # if the names change, make sure to change it below as well.
           $setpass = ConvertTo-SecureString -AsPlainText $password -force
 
@@ -425,24 +612,24 @@ Function Add-Users
             write-log "info" "Created new user : $($sam)"
 
             $dn = (Get-ADUser $sam).DistinguishedName
-  
+
             # Move the user to the OU ($location) you set above. If you don't
             # want to move the user(s) and just create them in the global Users
             # OU, comment the string below
             If ([adsi]::Exists("LDAP://$($location)"))
             {
               $WhatIfPreference = $simulation
-              Move-ADObject -Identity $dn -TargetPath $location 
+              Move-ADObject -Identity $dn -TargetPath $location
               $WhatIfPreference = $false
               write-log "info" "User $sam moved to target OU : $($location)"
-              
+
             }
             Else
             {
               write-log "error" "Targeted OU couldn't be found. Newly created user wasn't moved!"
-           
+
             }
-       
+
             # Rename the object to a good looking name (otherwise you see
             # the 'ugly' shortened sAMAccountNames as a name in AD. This
             # can't be set right away (as sAMAccountName) due to the 20
@@ -450,15 +637,15 @@ Function Add-Users
             $newdn = (Get-ADUser $sam).DistinguishedName
 
             Add-ADGroupMember -Identity $TargetGroup -Members $newdn
-            write-log "info" "$sam was added to target group"
+            write-log "info" "$sam was added to Target Group"
 
             $WhatIfPreference = $simulation
             Rename-ADObject -Identity $newdn -NewName $DisplayName
             $WhatIfPreference = $false
             write-log "info" "Renamed $($sam) to $displayName."
 
-            
-            
+
+
           }
           Catch
           {
@@ -468,19 +655,32 @@ Function Add-Users
         Else
         {
           write-log "error" "User $($sam) ($($GivenName) $($LastName)) already exists or returned an error!"
-          
+
         }
       }
     $i++
   }
-  write-log "info" "$i users were created."  
+  write-log "info" "$i users were created."
 }
-
-
-
 
 Function Set-Users #account both in AU and AD
 {
+    <#
+    .DESCRIPTION
+     Create user in AD based on global:usersCreate
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>    
     $i=1
     $global:usersEdit | ForEach-Object {
         $EmployeeID = $_.contactid
@@ -544,13 +744,29 @@ Function Set-Users #account both in AU and AD
 
 }
 
-
 Function Move-Users
 {
+    <#
   <# 
-  Movement of user & data
-  
+    <#
+    .DESCRIPTION
+    Movement of user & data
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #>    
   #>
+    #>    
+
     $i=1
     $global:usersMove | ForEach-Object {
         $samaccountname=$_.sAMAccountName #WIP
@@ -579,14 +795,26 @@ Function Move-Users
         $i++
         }
      }
-     write-log "info" "$i users have been disabled and moved."  
+     write-log "info" "$i users have been disabled and moved."
 }
 
-function Clear-users{
-    #WIP
+function Clear-users {
+    <#
+    .DESCRIPTION
+    Movement of user & data
+    .PARAMETER Extension
+    Specifies the extension. "Txt" is the default.
 
-    $userBase=Search-ADAccount -UsersOnly -SearchBase $disabledOU -AccountInactive -TimeSpan 365 | where-object{$_.enabled -eq $false} | Get-ADUser -Properties Name, sAMAccountName, description,employeeID,employeeNumber whenChanged,whenCreated  | Select-object Name, sAMAccountName, description,employeeID,Employeenumber, whenChanged,whenCreated 
-    New-ADObject -name "$($_.Name) [$($_.description)]" -type contact -Description $_.description -OtherAttributes @{'employeeID'="$_.employeeID"; 'info'="Relatienummer: $_.employeeID`nEmployeeNumber: $_.employeenumber`nWhenCreated: $_.whenCreated`nWhenChanged: $_.whenChanged"} -path $contactOU
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    System.String. Add-Extension returns a string with the extension or file name.
+
+    .EXAMPLE
+    PS> extension -name "File"
+    File.txt
+    #> 
 
     #$homeDriveRoot = "\server1userfolders"
     #$leaversRoot = "\server1userfoldersoldusers"
@@ -605,17 +833,21 @@ function Clear-users{
 
 
 }
+function invoke-PostCleanUp(){
+    $WhatIfPreference = $simulation
+    $DatetoDelete = $Date.AddDays($LogRetentionDays)
+    Get-ChildItem $path/input/*.log| Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item #delete logs older than 30 days
+    Copy-Item "$path/input/$global:csvfile" -Destination $backupinput
+    remove-item "$path/input/$global:csvfile"
+    write-log "info" "Removed CSV file"
+    $WhatIfPreference = $false
+    write-log "info" "STOPPED SCRIPT"
+    Copy-Item "$log" -Destination "$path/input"
+    Exit-PSSession
+}
 
-
-Start-Commands #whole program
-$WhatIfPreference = $simulation
-
-$DatetoDelete = $Date.AddDays($log_del_day)
-Get-ChildItem $path/input/*.log| Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item #delete logs older than 30 days
-remove-item "$path/input/$global:csvfile"
-write-log "info" "Removed CSV file"
-$WhatIfPreference = $false
-write-log "info" "STOPPED SCRIPT"
-Copy-Item "$log" -Destination "$path/input"
-Exit-PSSession
-
+Initialize-StaticVars
+Import-Config #import config
+. "$path\\SetOperations.ps1" #dot source set-operations
+Invoke-SyncAllUnitedToAD #the whole program
+Invoke-PostCleanUp #cleanup and move files
