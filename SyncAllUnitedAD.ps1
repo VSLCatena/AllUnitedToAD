@@ -7,18 +7,18 @@ Param(
 # AUTHOR  : Martijn Koetsier
 # Based on: Marius / Hican - http://www.hican.nl - @hicannl (26-04-2012 --> 07-08-2014)
 # DATE    : 2019-04-06
-# EDIT    : 
 # COMMENT : This script creates new Active Directory users,
 #           including different kind of properties, based
-#           on an input_create_ad_users.csv.
-# VERSION : 1.0.5
+#           on a CSV-file.
+# VERSION : 1.0.9
+###########################################################
+#
+# Changelog
+#
 ###########################################################
 
-
-
-
 # 0.9      : 2019-03-17 Copied code
-# 0.9.1    : 2019-04-06 Removed attributes not used 
+# 0.9.1    : 2019-04-06 Removed attributes not used
 # 0.9.2    : 2019-04-13 Create username and set functions
 # 0.9.3    : 2019-04-20 Included Simulation argument
 # 0.9.4    : 2019-04-28 working concept and user to contact idea worked out
@@ -26,12 +26,18 @@ Param(
 # 0.9.6    : 2019-07-09 Error with duplicate username loop. Fixed by initializing sam_ori. Fixed extra log in output folder
 # 1.0.0    : 2020-07-02 Change primary key and optimized functions. Created backup
 # 1.0.1    : 2020-07-03 Added additional info when change of fields is performed, added https://lazywinadmin.com/2015/05/powershell-remove-diacritics-accents.html method2
-# 1.0.2 	: 2020-07-03 Fix for encoding. omit -Encoding --> UTF8, -Encoding Default --> do nothing https://stackoverflow.com/questions/48947151/import-csv-export-csv-with-german-umlauts-%C3%A4-%C3%B6-%C3%BC
-# 1.0.3 	: 2020-07-17 Added mailnickname for azure
-# 1.0.4 	: 2020-07-28 Fix for phone numbers
-# 1.0.5 	: 2020-07-29 Update fix for more numbers and debug
-# 1.0.5a    : 2020-08-06 Created generalized version for GitHub
-# 1.0.6   : 2020-09-08 Validation of email fixed
+# 1.0.2    : 2020-07-03 Fix for encoding. omit -Encoding --> UTF8, -Encoding Default --> do nothing https://stackoverflow.com/questions/48947151/import-csv-export-csv-with-german-umlauts-%C3%A4-%C3%B6-%C3%BC
+# 1.0.3 	 : 2020-07-17 Added mailnickname for azure
+# 1.0.4 	 : 2020-07-28 Fix for phone numbers
+# 1.0.5 	 : 2020-07-29 Update fix for more numbers and debug
+# 1.0.5a   : 2020-08-06 Created generalized version for GitHub (not this one!)
+# 1.0.6    : 2020-09-08 Validation of email fixed
+# 1.0.7    : 2020-09-23 last check of contact creation for old members
+# 1.0.8		 : 2021-06-12 keep input logs for longer time
+# 1.0.9		 : 2021-08-01 Fix officephone for change-users set
+# 1.1.0    : 2021-10-01 Rewrite / cleanup code, so Github and local are identical
+# 1.1.1.   : 2021-10-04 Add secondary email
+
 
 # ERROR REPORTING ALL
 Set-StrictMode -Version latest
@@ -345,28 +351,28 @@ Function Get-SetResults
     new-variable -name set_CSV -Value ($temp_set_CSV|Sort-Object -unique) #get only unique values
     write-log "warning" "There are $(@($set_CSV).length) users with unique LIDNUMMER in AllUnited"
 
-        
+
     $set_edit = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Intersection
     $set_move = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Difference-LeftMinusRight
     $set_create = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Difference-RightMinusLeft
-    
+
     write-log "info" "All users from AD $(@($set_AD).Length) - $(@($set_move).length) Remove + $(@($set_create).length) Create = $(@($set_edit).length) edit. Cross checking every set with AD / CSV:"
 
     $global:usersEdit = Get-filteredDataset $users_CSV $set_edit $primaryKeyCSV
     $global:usersMove =  Get-filteredDataset $users_AD $set_move $primaryKeyAD
     $global:usersCreate =  Get-filteredDataset $users_CSV $set_create $primaryKeyCSV
 
-    write-log "warning" "There are $(@($global:usersEdit).length) users in AD eligable for edit." 
+    write-log "warning" "There are $(@($global:usersEdit).length) users in AD eligable for edit."
     write-log "warning" "There are $(@($global:usersMove).length) users to be disabled"
-	$list_name=$global:usersMove | select-object -expandproperty displayName | sort-Object  #because list of DN
-	$list_name=$list_name -join "`n" | Out-String
-	write-log "info" "Disabled users:`n$list_name"
+    $list_name=$global:usersMove | select-object -expandproperty displayName | sort-Object  #because list of DN
+    $list_name=$list_name -join "`n" | Out-String
+    write-log "info" "Disabled users:`n$list_name"
     write-log "warning" "There are $(@($global:usersCreate).length) users to be created from AllUnited"
 
-	$list_name=$global:usersCreate | select-object -expandproperty name2 | sort-Object
-	$list_name=$list_name -join "`n" | Out-String
+    $list_name=$global:usersCreate | select-object -expandproperty name2 | sort-Object
+    $list_name=$list_name -join "`n" | Out-String
 
-	write-log "info" "To be created users:`n$list_name"
+    write-log "info" "To be created users:`n$list_name"
 }
 
 Function get-username
@@ -394,14 +400,14 @@ Function get-username
     File.txt
     #>
     $j=0
-	$sam_ori=$null
+    $sam_ori=$null
     $p_lastname = $prelastname.ToLower() + $lastname.ToLower()
     $p_lastname = $p_lastname.Replace(",","")
     $p_lastname = $p_lastname.Replace(".","")
     $p_lastname = $p_lastname.Replace(" ","")
     $p_lastname = $p_lastname.Replace("'","")
     $p_lastname = $p_lastname.Replace("-","")
-        
+
     $fullname = $firstname.substring(0,1).ToLower() + $p_lastname
 
     If($fullname.length -ge 20)
@@ -439,18 +445,10 @@ function Optimize-phonenumber($no)
     <#
     .DESCRIPTION
     #Count Name                      Group
-#Count Name                      Group                                                                                                                              
-    #Count Name                      Group
     #----- ----                      -----
-#----- ----                      -----                                                                                                                              
-    #----- ----                      -----
-    #  895 10                        {0612345678...}
-#  895 10                        {0612345678...}                                                                                
     #  895 10                        {0612345678...}
     #    2 13                        {0035712345678, 0013012345678}
     #    4 14                        {00441234567891}
-    #    3 9                         {061234567 }
-#    3 9                         {061234567 }                                                                                                  
     #    3 9                         {061234567 }
     #    2 11                        {03212345679}
     #    4 12                        {031612345678, 040123456789, 031687654321}
@@ -480,12 +478,12 @@ function Optimize-phonenumber($no)
         $type=$null
         $res=$var -replace '^0', '+31'
     }
-     
+
     Else #wtf
     {
         $res=$var
         $type="No_Change_$len"
-    
+
         #If ($($var -replace '^0+', '').Substring(0,1) -eq '6')
         #{
         #    #possible mobile phone number
@@ -535,8 +533,6 @@ function Remove-StringLatinCharacters
 Function Add-Users
 {
     <#
-  <# 
-    <#
     .DESCRIPTION
      Create user in AD based on global:usersCreate
     .PARAMETER Extension
@@ -563,10 +559,11 @@ Function Add-Users
     $pre = Remove-StringLatinCharacters($_.prelastname)
     $GivenName = Remove-StringLatinCharacters($_.firstname)
     $Phone = $($_.phone2).replace("-","")
-	$Phone = optimize-phonenumber($Phone)
-    $EmailAddress = $($_.email).trim()
+    $Phone = $(Optimize-phonenumber($Phone)).Number
+    $EmailAddress = ($_.email).trim()
     $Description = $_.value08
     $Employeenumber = $_.value08
+    ExtensionAttribute2=$_.value10
 
     $password = ([char[]]([char]32..[char]122) | sort-Object {Get-Random})[0..50] -join ''
 
@@ -609,7 +606,7 @@ Function Add-Users
              -AccountPassword $setpass `
             -profilePath "$ProfilePath$sam" -homeDirectory "$HomeDirectory$sam" `
             -homeDrive $homeDrive -Enabled $enabled `
-			-OtherAttributes @{mailnickname=$sam}
+            -OtherAttributes @{mailnickname=$sam;extensionAttribute2=$extensionAttribute2}
             $WhatIfPreference = $false
 
             write-log "info" "Created new user : $($sam)"
@@ -693,31 +690,33 @@ Function Set-Users #account both in AU and AD
         $pre = Remove-StringLatinCharacters($_.prelastname)
         $GivenName = Remove-StringLatinCharacters($_.firstname)
         $OfficePhone = $($_.phone2).replace("-","")
+        $OfficePhone = $(Optimize-phonenumber($OfficePhone)).Number
         $EmailAddress = ($_.email).trim()
         $Description = $_.value08
         $EmployeeNumber = $_.value08
-        
+        $extensionAttribute2 = $_.value10
 
-        $userAD=Get-ADUser -LDAPFilter "($($primaryKeyAD)=$($_.$primarykeyCSV))" -Properties `
-            DistinguishedName, DisplayName, EmployeeID, Description, EmailAddress, OfficePhone,  Initials, GivenName, Surname, Employeenumber
-        
-		$EmailAddress_old = $userAD.EmailAddress
-		$OfficePhone_old = $userAD.OfficePhone 
-		$EmployeeNumber_old = $userAD.EmployeeNumber 
-		$EmployeeID_old = $userAD.EmployeeID 
-		$Initials_old = $userAD.Initials 
-		$GivenName_old = $userAD.GivenName 
-		$Surname_old = $userAD.Surname 
-		$Description_old = $userAD.Description 
+
+        $userAD=Get-ADUser -LDAPFilter "($($primaryKeyAD)=$($_.$primarykeyCSV))" -Properties DistinguishedName, DisplayName, EmployeeID, Description, EmailAddress, OfficePhone,  Initials, GivenName, Surname, Employeenumber,extensionAttribute2
+
+        $EmailAddress_old = $userAD.EmailAddress
+        $OfficePhone_old = $userAD.OfficePhone
+        $EmployeeNumber_old = $userAD.EmployeeNumber
+        $EmployeeID_old = $userAD.EmployeeID
+        $Initials_old = $userAD.Initials
+        $GivenName_old = $userAD.GivenName
+        $Surname_old = $userAD.Surname
+        $Description_old = $userAD.Description
         $DisplayName_old = $userAD.DisplayName
+        $extensionAttribute2_old = $userAD.extensionAttribute2
 
-		
+
         #security (2 out of 3 vars need to stay static)
         $test_disp = $userAD.Displayname -eq $displayName #equal displayname
         $test_eid = $userAD.EmployeeID -eq $EmployeeID #equal employeeid
         $test_desc = $userAD.Description -eq $description #equal description
         $test23 = $test_disp -and ($test_eid -or $test_desc) -or ($test_eid -and $test_desc); #2 out of 3 need to be true
-        
+
         $update = ""
         if($test23) {
           if(($userAD.EmailAddress -ne $EmailAddress) -and ($EmailAddress.length -gt 0)){ $userAD.EmailAddress = $EmailAddress; $update+="email[$EmailAddress_old => $EmailAddress]," }
@@ -729,11 +728,46 @@ Function Set-Users #account both in AU and AD
           if(($userAD.Surname -ne $("$pre $Surname").trim()) -and ($("$pre $Surname").trim().length -gt 0)){ $userAD.Surname = $("$pre $Surname").trim(); $update+="Surname[$Surname_old => $Surname]," }
           if(($userAD.Description -ne $Description) -and ($Description.length -gt 0)){ $userAD.Description = $Description; $update+="Description[$Description_old => $Description]," }
           if(($userAD.DisplayName -ne $DisplayName) -and ($DisplayName.length -gt 0)){ $userAD.DisplayName = $DisplayName; $update+="DisplayName[$DisplayName_old => $DisplayName]," }
+          if(($userAD.extensionAttribute2 -ne $extensionAttribute2) -and ($extensionAttribute2.length -gt 0)){ $userAD.extensionAttribute2 = $extensionAttribute2; $update+="Google Account[$extensionAttribute2_old => $extensionAttribute2]," }
         }
+        # functionalize this 
+        function set-adparameter {
+            param(
+                [string]$parameter
+            )
+            <#
+            .DESCRIPTION
+        
+            .PARAMETER Extension
+            Specifies the extension. "Txt" is the default.
+        
+            .INPUTS
+            None.
+        
+            .OUTPUTS
+            System.String. Add-Extension returns a string with the extension or file name.
+        
+            .EXAMPLE
+            PS> extension -name "File"
+            File.txt
+            #>
+            $var = get-variable $parameter
+            $value_old = Get-Variable $parameter"_old" | select-object -ExpandProperty value
+            $key = $var.Name
+            $value = $var.value
+            if(($userAD.$key -ne $value) -and ($value.length -gt 0)){ 
+                $global:userAD.$key = $value
+                $global:update+="$key[$value_old => $value]," 
+            }
+            
+
+        }
+
+        #
         else {
           write-log "info" "$DisplayName_old unable to update due too much desc/displayname/employeeid change"
         }
-        
+
         if($update.Length -gt 0){
             $WhatIfPreference = $simulation
             Set-ADUser -Instance $userAD
@@ -741,16 +775,14 @@ Function Set-Users #account both in AU and AD
             write-log "info" "$DisplayName_old is updated with $update"
             $i++
         }
-        
+
     }
-    write-log "info" "$i users were updated with new data."  
+    write-log "info" "$i users were updated with new data."
 
 }
 
 Function Move-Users
 {
-    <#
-  <# 
     <#
     .DESCRIPTION
     Movement of user & data
@@ -767,33 +799,31 @@ Function Move-Users
     PS> extension -name "File"
     File.txt
     #>    
-  #>
-    #>    
 
     $i=1
     $global:usersMove | ForEach-Object {
-        $samaccountname=$_.sAMAccountName #WIP
+        $samaccountname=$_.sAMAccountName
         $user=$_.DistinguishedName
         if($($_.displayName) -ne "_IGNORE_USERS") {
-        
+
         $password = ([char[]]([char]32..[char]122) | Sort-Object {Get-Random})[0..50] -join ''
         $setpass = ConvertTo-SecureString -AsPlainText $password -force
         $description = "Disabled_$(get-date -Format "yyyy-MM-dd")__$($_.description)"
         $WhatIfPreference = $simulation
-<# 
+<#
         $targetHD="$homedirecory_direct\_old\$samaccountname"
         $targetPP="$profilepath_direct\_old\$samaccountname.?"
-        
-        
+
+
         Move-Item -Path "$homeDirectory_direct\$samaccountname" -Destination "$targetHD" -Force
         Move-Item -Path "$profilepath_direct\$samaccountname.?" -Destination "$targetPP" -Force #>
 
-        #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"        
-		Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description #remove mail / phone and disable user
+        #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"
+            Set-ADUser -Identity $user -clear mail,telephoneNumber,extensionAttribute2  -Enabled $False -Description $description
         Set-ADAccountPassword -Identity $user -NewPassword $setpass -Reset
-        Remove-ADGroupMember -Identity $TargetGroup -Members $user -confirm:$false 
+        Remove-ADGroupMember -Identity $TargetGroup -Members $user -confirm:$false
         Move-ADObject -Identity $user -TargetPath $disabledOU
-        write-log "info" "$($_.name) is cleared and password randomized."  
+        write-log "info" "$($_.name) is cleared and password randomized."
         $WhatIfPreference = $false
         $i++
         }
@@ -818,6 +848,9 @@ function Clear-users {
     PS> extension -name "File"
     File.txt
     #> 
+    $userBase=Search-ADAccount -UsersOnly -SearchBase $disabledOU -AccountInactive -TimeSpan $inactiveDays| where-object{$_.enabled -ne $true}
+      $userBaseDetail = $userBase | foreach-object {Get-ADUser -identity $_.SamAccountName -Properties Name, sAMAccountName, description,employeeID,employeeNumber whenChanged,whenCreated  | Select-object Name, sAMAccountName, description,employeeID,Employeenumber, whenChanged,whenCreated }
+    $userBaseDetail | ForEach-Object {New-ADObject -name "$($_.Name) [$($_.description)]" -type contact -Description $_.description -OtherAttributes @{'employeeID'="$_.employeeID"; 'info'="Relatienummer: $_.employeeID`nEmployeeNumber: $_.employeenumber`nWhenCreated: $_.whenCreated`nWhenChanged: $_.whenChanged"} -path $contactOU }
 
     #$homeDriveRoot = "\server1userfolders"
     #$leaversRoot = "\server1userfoldersoldusers"
