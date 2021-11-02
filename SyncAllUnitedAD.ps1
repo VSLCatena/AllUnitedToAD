@@ -306,18 +306,17 @@ Function Get-CSVUsers
     PS> extension -name "File"
     File.txt
     #>
-  $global:csvfile = Get-ChildItem $path/input/*.csv | Sort-Object LastWriteTime | Select-Object -ExpandProperty Name -last 1
-  if("$csvfile".Length -eq 0)
-  {
+    $global:csvfile = Get-ChildItem $path/input/*.csv | Sort-Object LastWriteTime | Select-Object -ExpandProperty Name -last 1
+    if("$csvfile".Length -eq 0)
+    {
     write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
     exit 1
     Exit-PSSession
-  }
-  $global:users_CSV = Import-Csv -Delimiter ';' -encoding default -Path "$path/input/$csvfile" -Verbose 
+    }
+    $global:users_CSV = Import-Csv -header $CSVHeaderData -Delimiter ';' -encoding default -Path "$path/input/$csvfile" -Verbose
 
-  write-log "info" "There are $(@($users_CSV).length) users in AllUnited"
+    write-log "info" "There are $(@($users_CSV).length) users in AllUnited"
 }
-
 
 Function Get-SetResults
 {
