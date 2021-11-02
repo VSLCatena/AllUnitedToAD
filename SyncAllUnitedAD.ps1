@@ -212,16 +212,17 @@ Function Get-filteredDataset{
     PS> extension -name "File"
     File.txt
     #>
+  $dataset_size = @($dataset).length
     $set_size = @($set).length
     write-log "info" "There are $dataset_size items that are validated against $set_size"
     # filter dataset with list
-    
-    
-    
+
+
+
     $filteredDataset = @()
-    $dataset | ForEach-Object { 
+    $dataset | ForEach-Object {
         $data = $_
-        $set | ForEach-Object { 
+        $set | ForEach-Object {
             $item = $_
             if($data.$($key) -eq $item){
                 $filteredDataset += $data
@@ -255,7 +256,7 @@ Function Get-adfromset{
     write-log "info" "There are $(($set).Length) items that are validated against AD"
     $filteredDataset = @()
     $set | ForEach-Object {
-        $item = Get-ADUser -LDAPFilter "($($primaryKeyAD)=$_)" -properties 1 2 3  
+        $item = Get-ADUser -LDAPFilter "($($primaryKeyAD)=$_)" -properties 1 2 3
         $filteredDataset += $item
         }
     return $filteredDataset
@@ -278,7 +279,12 @@ Function Get-ADUsers
     .EXAMPLE
     PS> extension -name "File"
     File.txt
+    #>
+    $global:users_AD = Get-ADUser -filter * -Properties $ADHeaderData -ResultSetSize $null -SearchBase $TargetOU
+    $global:users_AD | export-csv -Path $BackupAD -Delimiter ";"
+    write-log "info" "Created backup of all Users/Leden"
     write-log "info" "There are $(@($users_AD).Length) users in AD"
+    write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty officephone | Group-Object length | format-table)"
 
 }
 
