@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
-    $simulation=$True,
-    $interactive=$True
+    $simulation = $True,
+    $interactive = $True
 )
 ###########################################################
 # AUTHOR  : Martijn Koetsier
@@ -68,14 +68,14 @@ Catch {
 # LOAD STATIC VARIABLES
 #----------------------------------------------------------
 
-function Initialize-StaticVars(){
-    new-variable -Scope global -Option ReadOnly, AllScope -name path         -Value $(if($PSScriptRoot -eq "") {$PSScriptRoot} else {$(get-location).Path}f)
-    new-variable -Scope global -Option ReadOnly, AllScope -name date         -Value $(Get-Date)
-    new-variable -Scope global -Option Constant, AllScope -name ADdn         -Value $((Get-ADDomain).DistinguishedName)
-    new-variable -Scope global -Option Constant, AllScope -name dnsroot      -Value $((Get-ADDomain).DNSRoot)
-    new-variable -Scope global -Option ReadOnly, AllScope -name BackupAD     -Value $(join-path $path "\\backup\\AD_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
-    new-variable -Scope global -Option ReadOnly, AllScope -name BackupInput  -Value $(join-path $path "\\backup\\Input_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
-    new-variable -Scope global -Option ReadOnly, AllScope -name LogFile      -Value $(join-path $path "\\log\\$(get-date -Format "yyyy-MM-dd").log")
+function Initialize-StaticVars() {
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name path -Value $(if ($PSScriptRoot -eq "") { $PSScriptRoot } else { $(Get-Location).Path }f)
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name date -Value $(Get-Date)
+    New-Variable -Scope global -Option Constant, AllScope -Name ADdn -Value $((Get-ADDomain).DistinguishedName)
+    New-Variable -Scope global -Option Constant, AllScope -Name dnsroot -Value $((Get-ADDomain).DNSRoot)
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name BackupAD -Value $(Join-Path $path "\\backup\\AD_Backup-$(Get-Date -Format 'yyyy-MM-dd').csv")
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name BackupInput -Value $(Join-Path $path "\\backup\\Input_Backup-$(Get-Date -Format 'yyyy-MM-dd').csv")
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name LogFile -Value $(Join-Path $path "\\log\\$(Get-Date -Format "yyyy-MM-dd").log")
 }
 
 #----------------------------------------------------------
@@ -138,34 +138,30 @@ function Import-Config() {
 #START FUNCTIONS
 #----------------------------------------------------------
 
-Function invoke-SyncAllUnitedToAD
-{
+Function invoke-SyncAllUnitedToAD {
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
-
+    The main script that is used to manipulate the environment
+    
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    None.
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> invoke-SyncAllUnitedToAD
     #>
     write-log "info" "STARTED SCRIPT" -disableWrite:$true
     write-log "warning" "Status of simulation: $Simulation" -disableWrite:$true
     Get-CSVUsers
     Get-ADUsers
-        if([math]::Abs($($global:users_CSV).Length-$($global:users_AD).Length)/$($global:users_AD).Length -ge $changeThreshold ) {
-            write-log "warning" "Change in users is over $changeThreshold. Due to safety reasons, this script will stop."
-        if(!$($interactive)) {exit 1}
+    if ([math]::Abs($($global:users_CSV).Length - $($global:users_AD).Length) / $($global:users_AD).Length -ge $changeThreshold ) {
+        write-log "warning" "Change in users is over $changeThreshold. Due to safety reasons, this script will stop."
+        if (!$($interactive)) { exit 1 }
     }
     Get-SetResults
-    if($interactive) {Read-Host("Continue?")}
+    if ($interactive) { Read-Host("Continue?") }
     Add-Users
     Set-Users
     Move-Users
@@ -180,6 +176,25 @@ Function Write-Log {
         [Parameter(Position = 0)]$LogLevel = "INFO",
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelinebyPropertyName = $True, Position = 1)]$data
     )
+    <#
+    .DESCRIPTION
+    Add data to log with a certain loglevel
+    
+    .PARAMETER LogLevel
+    Type of Log Level
+    
+    .PARAMETER data
+    The object containing the data for log
+    
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    None.
+
+    .EXAMPLE
+    PS> Write-Log -LogLevel Warning -data $data
+    #>    
     #When you want PowerShell to process all objects coming in from the pipeline, you must next add a Process block. This block tells PowerShell to process each object coming in from the pipeline.
     begin {
         #before the first item in the collection.
@@ -241,29 +256,35 @@ Function Write-Log {
     }
 }
 
-Function Get-filteredDataset{
+Function Get-filteredDataset {
     param(
         [object]$dataset,
-        [object]$set=@(),
+        [object]$set = @(),
         [string]$key
     )
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
-
+    Compares an array of objects (with $key as key) against list of keys ($set) and returns objects that are intersecting.
+    
+    .PARAMETER dataset
+    Specifies the main dataset
+    
+    .PARAMETER set
+    Specifies a certain subset of the main dataset with values corresponding to $key
+    
+    .PARAMETER key
+    Specifies primary key on which the comparison must be done 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    filteredDataset
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Get-filteredDataset $users_CSV $set_edit $primaryKeyCSV
+    
     #>
-  $dataset_size = @($dataset).length
+    $dataset_size = @($dataset).length
     $set_size = @($set).length
     write-log "info" "There are $dataset_size items that are validated against $set_size"
     # filter dataset with list
@@ -275,127 +296,88 @@ Function Get-filteredDataset{
         $data = $_
         $set | ForEach-Object {
             $item = $_
-            if($data.$($key) -eq $item){
+            if ($data.$($key) -eq $item) {
                 $filteredDataset += $data
-                }
             }
         }
+    }
     return $filteredDataset
 }
 
-Function Get-adfromset{
-    param(
-        [object]$set=@(),
-        [string]$key
-    )
+Function Get-ADUsers {
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
+    Retrieves all the users from AD with some specific boundaries
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    File. Exports to local disk for backup
+    $global:users_AD containing all the data
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS>  Get-ADUsers
+
     #>
-    write-log "info" "There are $(($set).Length) items that are validated against AD"
-    $filteredDataset = @()
-    $set | ForEach-Object {
-        $item = Get-ADUser -LDAPFilter "($($primaryKeyAD)=$_)" -properties 1 2 3
-        $filteredDataset += $item
-        }
-    return $filteredDataset
-}
-
-Function Get-ADUsers
-{
-    <#
-    .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
-
-    .INPUTS
-    None.
-
-    .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
-
-    .EXAMPLE
-    PS> extension -name "File"
-    File.txt
-    #>
-    $global:users_AD = Get-ADUser -filter * -Properties $ADHeaderData -ResultSetSize $null -SearchBase $TargetOU
-    $global:users_AD | export-csv -Path $BackupAD -Delimiter ";"
+    $global:users_AD = Get-ADUser -Filter * -Properties $ADHeaderData -ResultSetSize $null -SearchBase $TargetOU
+    $global:users_AD | Export-Csv -Path $BackupAD -Delimiter ";"
     write-log "info" "Created backup of all Users/Leden"
     write-log "info" "There are $(@($users_AD).Length) users in AD"
-    write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty officephone | Group-Object length | format-table)"
+    write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty telephoneNumber | Group-Object length | Format-Table)"
 
 }
 
-Function Get-CSVUsers
-{
+Function Get-CSVUsers {
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
+    Gets the CSV-data from file 
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    $global:users_CSV containing all the data
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Get-CSVUsers
+
     #>
-    $global:csvfile = Get-ChildItem $path/input/*.csv | Sort-Object LastWriteTime | Select-Object -ExpandProperty Name -last 1
-    if("$csvfile".Length -eq 0)
-    {
-    write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
-    exit 1
+    $global:csvfile = Get-ChildItem $path/input/*.csv | Sort-Object LastWriteTime | Select-Object -ExpandProperty Name -Last 1
+    if ("$csvfile".Length -eq 0) {
+        write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
+        exit 1
     }
-    $CSVHeaderData.split(";")
-    $global:users_CSVRAW = Import-Csv -header $($CSVHeaderData.split(";")) -Delimiter ';' -encoding UTF8 -Path "$path/input/$csvfile" -Verbose
+    $global:users_CSVRAW = Import-Csv -Header $($CSVHeaderData.split(";")) -Delimiter ';' -Encoding UTF8 -Path "$path/input/$csvfile" -Verbose
     
-    $global:users_CSV = $global:users_CSVRAW | where {$_.Naam -ne ""}
-    $global:users_CSVInvalid = $global:users_CSVRAW | where {$_.Naam -eq ""}
+    $global:users_CSV = $global:users_CSVRAW | Where-Object { $_.Naam -ne "" }
+    $global:users_CSVInvalid = $global:users_CSVRAW | Where-Object { $_.Naam -eq "" }
     write-log "info" "There are $(@($users_CSVRAW).length) users in AllUnited (excluding $(@($users_CSVInvalid).length) with invalid name)"
 }
 
-Function Get-SetResults
-{
+Function Get-SetResults {
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
-
+    Uses set functions (external) to get from two dataset the intersect, left and right values. Intersect is in both sets, left only in left set and right only in right set.
+    
     .INPUTS
-    None.
+    $users_CSV
+    $users_AD
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    Three sets: intersect, left and right
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Get-SetResults
+
     #>
 
-    $temp_set_AD = $users_AD | foreach-object { $_.$primaryKeyAD } #get column of AD field
-    new-variable -name set_AD -Value ($temp_set_AD|Sort-Object -unique) #get only unique values
+    $temp_set_AD = $users_AD | ForEach-Object { $_.$primaryKeyAD } #get column of AD field
+    New-Variable -Name set_AD -Value ($temp_set_AD | Sort-Object -Unique) #get only unique values
     write-log "warning" "There are $(@($set_AD).length) users with unique LIDNUMMER in AD"
 
-    $temp_set_CSV = $users_CSV | foreach-object { $_.$primaryKeyCSV } #get column of CSV field
-    new-variable -name set_CSV -Value ($temp_set_CSV|Sort-Object -unique) #get only unique values
+    $temp_set_CSV = $users_CSV | ForEach-Object { $_.$primaryKeyCSV } #get column of CSV field
+    New-Variable -Name set_CSV -Value ($temp_set_CSV | Sort-Object -Unique) #get only unique values
     write-log "warning" "There are $(@($set_CSV).length) users with unique LIDNUMMER in AllUnited"
 
 
@@ -406,24 +388,23 @@ Function Get-SetResults
     write-log "info" "All users from AD $(@($set_AD).Length) - $(@($set_move).length) Remove + $(@($set_create).length) Create = $(@($set_edit).length) edit. Cross checking every set with AD / CSV:"
 
     $global:usersEdit = Get-filteredDataset $users_CSV $set_edit $primaryKeyCSV
-    $global:usersMove =  Get-filteredDataset $users_AD $set_move $primaryKeyAD
-    $global:usersCreate =  Get-filteredDataset $users_CSV $set_create $primaryKeyCSV
+    $global:usersMove = Get-filteredDataset $users_AD $set_move $primaryKeyAD
+    $global:usersCreate = Get-filteredDataset $users_CSV $set_create $primaryKeyCSV
 
     write-log "warning" "There are $(@($global:usersEdit).length) users in AD eligable for edit."
     write-log "warning" "There are $(@($global:usersMove).length) users to be disabled"
-    $list_name=$global:usersMove | select-object -expandproperty displayName | sort-Object  #because list of DN
-    $list_name=$list_name -join "`n" | Out-String
+    $list_name = $global:usersMove | Select-Object -ExpandProperty displayName | Sort-Object  #because list of DN
+    $list_name = $list_name -join "`n" | Out-String
     write-log "info" "Disabled users:`n$list_name"
     write-log "warning" "There are $(@($global:usersCreate).length) users to be created from AllUnited"
 
-    $list_name=$global:usersCreate | select-object -expandproperty Naam | sort-Object
-    $list_name=$list_name -join "`n" | Out-String
+    $list_name = $global:usersCreate | Select-Object -ExpandProperty Naam | Sort-Object
+    $list_name = $list_name -join "`n" | Out-String
 
     write-log "info" "To be created users:`n$list_name"
 }
 
-Function get-username
-{
+Function get-username {
     param(
         [boolean]$new,
         [string]$firstname,
@@ -432,63 +413,71 @@ Function get-username
     )
     <#
     .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
+    Creates username based on name, prelastname and lastname and removes weird chars
+    
+    .PARAMETER new
+    Boolean, if this is for a completely new user
+    
+    .PARAMETER firstname
+    Firstname string
+    
+    .PARAMETER prelastname
+    Letters between first and last name
+    
+    .PARAMETER lastname
+    Lastname String
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    System.String. New usersname
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> get-username $true $givenname $pre $lastname
+
     #>
-    $j=0
-    $sam_ori=$null
+    $j = 0
+    $sam_ori = $null
     $p_lastname = $prelastname.ToLower() + $lastname.ToLower()
-    $p_lastname = $p_lastname.Replace(",","")
-    $p_lastname = $p_lastname.Replace(".","")
-    $p_lastname = $p_lastname.Replace(" ","")
-    $p_lastname = $p_lastname.Replace("'","")
-    $p_lastname = $p_lastname.Replace("-","")
+    $p_lastname = $p_lastname.Replace(",", "")
+    $p_lastname = $p_lastname.Replace(".", "")
+    $p_lastname = $p_lastname.Replace(" ", "")
+    $p_lastname = $p_lastname.Replace("'", "")
+    $p_lastname = $p_lastname.Replace("-", "")
 
-    $fullname = $firstname.substring(0,1).ToLower() + $p_lastname
+    $fullname = $firstname.substring(0, 1).ToLower() + $p_lastname
 
-    If($fullname.length -ge 20)
-    {
-        $fullname = $fullname.substring(0,20)
+    If ($fullname.length -ge 20) {
+        $fullname = $fullname.substring(0, 20)
     }
     $k = $true
     $sam = $fullname
 
-    while($k -eq $true) {
-        Try   { $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" -Properties useraccountcontrol }
+    while ($k -eq $true) {
+        Try { $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" -Properties useraccountcontrol }
         Catch {  } #if not found,gives error
-        If($exists) {
-            if ($new){
+        If ($exists) {
+            if ($new) {
                 write-log "warning" "$sam already exist"
-                if (!$sam_ori) {$sam_ori = $sam}
-                $j=$j+1
-                $sam = $sam_ori+$j
+                if (!$sam_ori) { $sam_ori = $sam }
+                $j = $j + 1
+                $sam = $sam_ori + $j
             }
-            if (!$new){
+            if (!$new) {
                 $k = $false
                 return($sam)
             }
         }
-        If(!$exists) {
+        If (!$exists) {
             write-log "info" "$sam is new username"
-            $k=$false
+            $k = $false
             return($sam)
-            }
+        }
     }
 }
 
-function Optimize-phonenumber($no)
-{
+function Optimize-phonenumber($no) {
     <#
     .DESCRIPTION
     #Count Name                      Group
@@ -500,36 +489,34 @@ function Optimize-phonenumber($no)
     #    2 11                        {03212345679}
     #    4 12                        {031612345678, 040123456789, 031687654321}
     #    1 15                        {004912345678901}
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
+    .PARAMETER Number
+    A phone number
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    System.String. Optimized phone number
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Optimize-phonenumber -no 0612345678 
+    +31612345678
     #>
 
-    $type=$null
+    $type = $null
     $result = @()
-    $var=[string]$no
-    $var= $var.trim() #remove spaces
+    $var = [string]$no
+    $var = $var.trim() #remove spaces
     $len = $var.Length
     #number can be between 8-15 digits. https://en.wikipedia.org/wiki/E.164
-    If ($len -eq 10) #10=perfect 0612345678 071 1234567
-    {
-        $type=$null
-        $res=$var -replace '^0', '+31'
+    If ($len -eq 10) { #10=perfect 0612345678 071 1234567
+        $type = $null
+        $res = $var -replace '^0', '+31'
     }
 
-    Else #wtf
-    {
-        $res=$var
-        $type="No_Change_$len"
+    Else { #wtf
+        $res = $var
+        $type = "No_Change_$len"
 
         #If ($($var -replace '^0+', '').Substring(0,1) -eq '6')
         #{
@@ -544,31 +531,30 @@ function Optimize-phonenumber($no)
     }
 
 
-   $result += [PSCustomObject] @{
-            Number = $res;
-            Type = $type;
-            }
+    $result += [PSCustomObject] @{
+        Number = $res;
+        Type   = $type;
+    }
     return $result
 
 
 }
 
-function Remove-StringLatinCharacters
-{
+function Remove-StringLatinCharacters {
     PARAM (
         [string]$String
     )
     <#
     .DESCRIPTION
 
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
+    .PARAMETER String
+    Specifies the String
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    System.String. Removed weird symbols from name
 
     .EXAMPLE
     PS> extension -name "File"
@@ -610,166 +596,152 @@ function set-ADParameter {
 
 }
 
-Function Add-Users
-{
+Function Add-Users {
     <#
     .DESCRIPTION
      Create user in AD based on global:usersCreate
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    New AD User
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Add-Users
+
     #>
 
-    $i=0
+    $i = 0
     $global:usersCreate | ForEach-Object {
 
-    $EmployeeID = $_.Relatienummer
-    $DisplayName = Remove-StringLatinCharacters($_.Naam)
-    $lastname = Remove-StringLatinCharacters($_.Achternaam)
-    $initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".","")).replace(" ",""))
-    $pre = Remove-StringLatinCharacters($_.Tussenvoegsel)
-    $GivenName = Remove-StringLatinCharacters($_.Voornaam)
-    $Phone = $($_.Mobiel).replace("-","")
-    $Phone = $(Optimize-phonenumber($Phone)).Number
-    $EmailAddress = ($_.Email).trim()
-    $Description = $_.Lidnummer
-    $Employeenumber = $_.Lidnummer
-    ExtensionAttribute2=$_.GoogleAccount
+        $EmployeeID = $_.Relatienummer
+        $DisplayName = Remove-StringLatinCharacters($_.Naam)
+        $lastname = Remove-StringLatinCharacters($_.Achternaam)
+        $initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".", "")).replace(" ", ""))
+        $pre = Remove-StringLatinCharacters($_.Tussenvoegsel)
+        $GivenName = Remove-StringLatinCharacters($_.Voornaam)
+        $Phone = $($_.Mobiel).replace("-", "")
+        $Phone = $(Optimize-phonenumber($Phone)).Number
+        $EmailAddress = ($_.Email).trim()
+        $Description = $_.Lidnummer
+        $Employeenumber = $_.Lidnummer
+        ExtensionAttribute2=$_.GoogleAccount
 
-    $password = ([char[]]([char]32..[char]122) | sort-Object {Get-Random})[0..50] -join ''
+        $password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
 
-     #(([char[]]([char]65..[char]90)+[char[]]([char]97..[char]121)+[char[]]([char]48..[char]57) | sort {Get-Random})[0..50] -join ''
+        #(([char[]]([char]65..[char]90)+[char[]]([char]97..[char]121)+[char[]]([char]48..[char]57) | sort {Get-Random})[0..50] -join ''
 
 
 
-      If (($displayName -eq "") -Or ($GivenName -eq "") -Or ($LastName -eq ""))
-      {
-        write-log "error" "Please provide valid Full Name, GivenName and LastName. Processing skipped for user $($i): $($displayName), $($Description)."
-      }
-      Else # Valid Full, given, lastname
-      {
+        If (($displayName -eq "") -Or ($GivenName -eq "") -Or ($LastName -eq "")) {
+            write-log "error" "Please provide valid Full Name, GivenName and LastName. Processing skipped for user $($i): $($displayName), $($Description)."
+        }
+        Else { # Valid Full, given, lastname
 
-        $location = $TargetOU + ",$($addn)"  # Set the target OU
-        $sam = get-username $true $givenname $pre $lastname
-        Try   {
-          $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" # get any user with saameacocuntanem,
-          $exists = Get-ADUser -LDAPFilter "(Description= $Description)" #get any user with specific description, possibly not needed after checking SetFunctions
-          $exists = Get-ADUser -LDAPFilter "(employeeID=$employeeID)" #get anny user with specific employeeID, possibly not needed after checking SetFunctions
-        } #does samaccountname exist?
-        Catch { }
-        If(!$exists) #does not exist
-        {
-          # Set all variables according to the table names in the Excel
-          # sheet / import CSV. The names can differ in every project, but
-          # if the names change, make sure to change it below as well.
-          $setpass = ConvertTo-SecureString -AsPlainText $password -force
+            $location = $TargetOU + ",$($addn)"  # Set the target OU
+            $sam = get-username $true $givenname $pre $lastname
+            Try {
+                $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" # get any user with saameacocuntanem,
+                $exists = Get-ADUser -LDAPFilter "(Description= $Description)" #get any user with specific description, possibly not needed after checking SetFunctions
+                $exists = Get-ADUser -LDAPFilter "(employeeID=$employeeID)" #get anny user with specific employeeID, possibly not needed after checking SetFunctions
+            } #does samaccountname exist?
+            Catch { }
+            If (!$exists) { #does not exist
+                # Set all variables according to the table names in the Excel
+                # sheet / import CSV. The names can differ in every project, but
+                # if the names change, make sure to change it below as well.
+                $setpass = ConvertTo-SecureString -AsPlainText $password -Force
 
-          Try
-          {
-            write-log "info" "Creating user : $($sam)"
-            $WhatIfPreference = $simulation
-            New-ADUser $sam -DisplayName $DisplayName `
-             -GivenName $GivenName -Initials $initials -Surname $pre$lastname `
-             -Description $Description -EmailAddress $EmailAddress -OfficePhone $phone `
-             -UserPrincipalName ($sam + "@" + $dnsroot) `
-             -EmployeeID $EmployeeID `
-             -EmployeeNumber $Employeenumber `
-             -AccountPassword $setpass `
-            -homeDirectory "$HomeDirectory$sam" `
-            -homeDrive $homeDrive -Enabled $enabled `
-            -OtherAttributes @{mailnickname=$sam;extensionAttribute2=$extensionAttribute2}
-            $WhatIfPreference = $false
+                Try {
+                    write-log "info" "Creating user : $($sam)"
+                    $WhatIfPreference = $simulation
+                    New-ADUser $sam -DisplayName $DisplayName `
+                        -GivenName $GivenName -Initials $initials -Surname $pre$lastname `
+                        -Description $Description -EmailAddress $EmailAddress -OfficePhone $phone `
+                        -UserPrincipalName ($sam + "@" + $dnsroot) `
+                        -EmployeeID $EmployeeID `
+                        -EmployeeNumber $Employeenumber `
+                        -AccountPassword $setpass `
+                        -HomeDirectory "$HomeDirectory$sam" `
+                        -HomeDrive $homeDrive -Enabled $enabled `
+                        -OtherAttributes @{mailnickname = $sam; extensionAttribute2 = $extensionAttribute2 }
+                    $WhatIfPreference = $false
 
-            write-log "info" "Created new user : $($sam)"
+                    write-log "info" "Created new user : $($sam)"
 
-            $dn = (Get-ADUser $sam).DistinguishedName
+                    $dn = (Get-ADUser $sam).DistinguishedName
 
-            # Move the user to the OU ($location) you set above. If you don't
-            # want to move the user(s) and just create them in the global Users
-            # OU, comment the string below
-            If ([adsi]::Exists("LDAP://$($location)"))
-            {
-              $WhatIfPreference = $simulation
-              Move-ADObject -Identity $dn -TargetPath $location
-              $WhatIfPreference = $false
-              write-log "info" "User $sam moved to target OU : $($location)"
+                    # Move the user to the OU ($location) you set above. If you don't
+                    # want to move the user(s) and just create them in the global Users
+                    # OU, comment the string below
+                    If ([adsi]::Exists("LDAP://$($location)")) {
+                        $WhatIfPreference = $simulation
+                        Move-ADObject -Identity $dn -TargetPath $location
+                        $WhatIfPreference = $false
+                        write-log "info" "User $sam moved to target OU : $($location)"
+
+                    }
+                    Else {
+                        write-log "error" "Targeted OU couldn't be found. Newly created user wasn't moved!"
+
+                    }
+
+                    # Rename the object to a good looking name (otherwise you see
+                    # the 'ugly' shortened sAMAccountNames as a name in AD. This
+                    # can't be set right away (as sAMAccountName) due to the 20
+                    # character restriction
+                    $newdn = (Get-ADUser $sam).DistinguishedName
+
+                    Add-ADGroupMember -Identity $TargetGroup -Members $newdn
+                    write-log "info" "$sam was added to Target Group"
+
+                    $WhatIfPreference = $simulation
+                    Rename-ADObject -Identity $newdn -NewName $DisplayName
+                    $WhatIfPreference = $false
+                    write-log "info" "Renamed $($sam) to $displayName."
+
+
+
+                }
+                Catch {
+                    write-log "error" "Oops, something went wrong: $($_.Exception.Message)"
+                }
+            }
+            Else {
+                write-log "error" "User $($sam) ($($GivenName) $($LastName)) already exists or returned an error!"
 
             }
-            Else
-            {
-              write-log "error" "Targeted OU couldn't be found. Newly created user wasn't moved!"
-
-            }
-
-            # Rename the object to a good looking name (otherwise you see
-            # the 'ugly' shortened sAMAccountNames as a name in AD. This
-            # can't be set right away (as sAMAccountName) due to the 20
-            # character restriction
-            $newdn = (Get-ADUser $sam).DistinguishedName
-
-            Add-ADGroupMember -Identity $TargetGroup -Members $newdn
-            write-log "info" "$sam was added to Target Group"
-
-            $WhatIfPreference = $simulation
-            Rename-ADObject -Identity $newdn -NewName $DisplayName
-            $WhatIfPreference = $false
-            write-log "info" "Renamed $($sam) to $displayName."
-
-
-
-          }
-          Catch
-          {
-            write-log "error" "Oops, something went wrong: $($_.Exception.Message)"
-          }
         }
-        Else
-        {
-          write-log "error" "User $($sam) ($($GivenName) $($LastName)) already exists or returned an error!"
-
-        }
-      }
-    $i++
-  }
-  write-log "info" "$i users were created."
+        $i++
+    }
+    write-log "info" "$i users were created."
 }
 
-Function Set-Users #account both in AU and AD
-{
+Function Set-Users { #account both in AU and AD
     <#
     .DESCRIPTION
      Create user in AD based on global:usersCreate
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    Modified AD User
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Set-Users
+
     #>    
-    $i=1
+    $i = 1
     $global:usersEdit | ForEach-Object {
         $EmployeeID = $_.Relatienummer
         $DisplayName = Remove-StringLatinCharacters($_.Naam)
         $Surname = Remove-StringLatinCharacters($_.Achternaam)
-        $Initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".","")).replace(" ",""))
+        $Initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".", "")).replace(" ", ""))
         $pre = Remove-StringLatinCharacters($_.Tussenvoegsel)
         $GivenName = Remove-StringLatinCharacters($_.Voornaam)
-        $OfficePhone = $($_.Mobiel).replace("-","")
+        $OfficePhone = $($_.Mobiel).replace("-", "")
         $OfficePhone = $(Optimize-phonenumber($OfficePhone)).Number
         $EmailAddress = ($_.Email).trim()
         $Description = $_.Lidnummer
@@ -777,7 +749,7 @@ Function Set-Users #account both in AU and AD
         $extensionAttribute2 = $_.GoogleAccount
 
 
-        $userAD=Get-ADUser -LDAPFilter "($($primaryKeyAD)=$($_.$primarykeyCSV))" -Properties DistinguishedName, DisplayName, EmployeeID, Description, EmailAddress, OfficePhone,  Initials, GivenName, Surname, Employeenumber,extensionAttribute2
+        $userAD = Get-ADUser -LDAPFilter "($($primaryKeyAD)=$($_.$primarykeyCSV))" -Properties DistinguishedName, DisplayName, EmployeeID, Description, EmailAddress, OfficePhone, Initials, GivenName, Surname, Employeenumber, extensionAttribute2
 
         $EmailAddress_old = $userAD.EmailAddress
         $OfficePhone_old = $userAD.OfficePhone
@@ -798,26 +770,26 @@ Function Set-Users #account both in AU and AD
         $test23 = $test_disp -and ($test_eid -or $test_desc) -or ($test_eid -and $test_desc); #2 out of 3 need to be true
 
         $update = ""
-        if($test23) {
-          if(($userAD.EmailAddress -ne $EmailAddress) -and ($EmailAddress.length -gt 0)){ $userAD.EmailAddress = $EmailAddress; $update+="email[$EmailAddress_old => $EmailAddress]," }
-          if(($userAD.OfficePhone -ne $OfficePhone) -and ($OfficePhone.length -gt 0)){ $userAD.OfficePhone = $OfficePhone; $update+="Phone[$OfficePhone_old => $OfficePhone]," }
-          if(($userAD.EmployeeNumber -ne $EmployeeNumber) -and ($EmployeeNumber.length -gt 0)){ $userAD.Employeenumber = $EmployeeNumber; $update+="EmployeeNumber[$EmployeeNumber_old => $EmployeeNumber]," }
-          if(($userAD.EmployeeID -ne $EmployeeID) -and ($EmployeeID.length -gt 0)){ $userAD.EmployeeID = $EmployeeID; $update+="EmployeeID[$EmployeeID_old => $EmployeeID]," }
-          if(($userAD.Initials -ne $Initials) -and ($Initials.length -gt 0)){ $userAD.Initials = $Initials; $update+="Initials[$Initials_old => $Initials]," }
-          if(($userAD.GivenName -ne $GivenName) -and ($GivenName.length -gt 0)){ $userAD.GivenName = $GivenName;$update+="GivenName[$GivenName_old => $GivenName]," }
-          if(($userAD.Surname -ne $("$pre $Surname").trim()) -and ($("$pre $Surname").trim().length -gt 0)){ $userAD.Surname = $("$pre $Surname").trim(); $update+="Surname[$Surname_old => $Surname]," }
-          if(($userAD.Description -ne $Description) -and ($Description.length -gt 0)){ $userAD.Description = $Description; $update+="Description[$Description_old => $Description]," }
-          if(($userAD.DisplayName -ne $DisplayName) -and ($DisplayName.length -gt 0)){ $userAD.DisplayName = $DisplayName; $update+="DisplayName[$DisplayName_old => $DisplayName]," }
-          if(($userAD.extensionAttribute2 -ne $extensionAttribute2) -and ($extensionAttribute2.length -gt 0)){ $userAD.extensionAttribute2 = $extensionAttribute2; $update+="Google Account[$extensionAttribute2_old => $extensionAttribute2]," }
+        if ($test23) {
+            if (($userAD.EmailAddress -ne $EmailAddress) -and ($EmailAddress.length -gt 0)) { $userAD.EmailAddress = $EmailAddress; $update += "email[$EmailAddress_old => $EmailAddress]," }
+            if (($userAD.OfficePhone -ne $OfficePhone) -and ($OfficePhone.length -gt 0)) { $userAD.OfficePhone = $OfficePhone; $update += "Phone[$OfficePhone_old => $OfficePhone]," }
+            if (($userAD.EmployeeNumber -ne $EmployeeNumber) -and ($EmployeeNumber.length -gt 0)) { $userAD.Employeenumber = $EmployeeNumber; $update += "EmployeeNumber[$EmployeeNumber_old => $EmployeeNumber]," }
+            if (($userAD.EmployeeID -ne $EmployeeID) -and ($EmployeeID.length -gt 0)) { $userAD.EmployeeID = $EmployeeID; $update += "EmployeeID[$EmployeeID_old => $EmployeeID]," }
+            if (($userAD.Initials -ne $Initials) -and ($Initials.length -gt 0)) { $userAD.Initials = $Initials; $update += "Initials[$Initials_old => $Initials]," }
+            if (($userAD.GivenName -ne $GivenName) -and ($GivenName.length -gt 0)) { $userAD.GivenName = $GivenName; $update += "GivenName[$GivenName_old => $GivenName]," }
+            if (($userAD.Surname -ne $("$pre $Surname").trim()) -and ($("$pre $Surname").trim().length -gt 0)) { $userAD.Surname = $("$pre $Surname").trim(); $update += "Surname[$Surname_old => $Surname]," }
+            if (($userAD.Description -ne $Description) -and ($Description.length -gt 0)) { $userAD.Description = $Description; $update += "Description[$Description_old => $Description]," }
+            if (($userAD.DisplayName -ne $DisplayName) -and ($DisplayName.length -gt 0)) { $userAD.DisplayName = $DisplayName; $update += "DisplayName[$DisplayName_old => $DisplayName]," }
+            if (($userAD.extensionAttribute2 -ne $extensionAttribute2) -and ($extensionAttribute2.length -gt 0)) { $userAD.extensionAttribute2 = $extensionAttribute2; $update += "Google Account[$extensionAttribute2_old => $extensionAttribute2]," }
         }
 
 
         #
         else {
-          write-log "info" "$DisplayName_old unable to update due too much desc/displayname/employeeid change"
+            write-log "info" "$DisplayName_old unable to update due too much desc/displayname/employeeid change"
         }
 
-        if($update.Length -gt 0){
+        if ($update.Length -gt 0) {
             $WhatIfPreference = $simulation
             Set-ADUser -Instance $userAD
             $WhatIfPreference = $false
@@ -830,36 +802,33 @@ Function Set-Users #account both in AU and AD
 
 }
 
-Function Move-Users
-{
+Function Move-Users {
     <#
     .DESCRIPTION
     Movement of user & data
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    Modified AD Users
 
     .EXAMPLE
-    PS> extension -name "File"
-    File.txt
+    PS> Move-Users
+
     #>    
 
-    $i=1
+    $i = 1
     $global:usersMove | ForEach-Object {
-        $samaccountname=$_.sAMAccountName
-        $user=$_.DistinguishedName
-        if($($_.displayName) -notin "$IgnoreUsersDisplayName") {
+        $samaccountname = $_.sAMAccountName
+        $user = $_.DistinguishedName
+        if ($($_.displayName) -notin "$IgnoreUsersDisplayName") {
 
-        $password = ([char[]]([char]32..[char]122) | Sort-Object {Get-Random})[0..50] -join ''
-        $setpass = ConvertTo-SecureString -AsPlainText $password -force
-        $description = "Disabled_$(get-date -Format "yyyy-MM-dd")__$($_.description)"
-        $WhatIfPreference = $simulation
-<#
+            $password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
+            $setpass = ConvertTo-SecureString -AsPlainText $password -Force
+            $description = "Disabled_$(Get-Date -Format "yyyy-MM-dd")__$($_.description)"
+            $WhatIfPreference = $simulation
+            <#
         $targetHD="$homedirecory_direct\_old\$samaccountname"
         $targetPP="$profilepath_direct\_old\$samaccountname.?"
 
@@ -867,41 +836,39 @@ Function Move-Users
         Move-Item -Path "$homeDirectory_direct\$samaccountname" -Destination "$targetHD" -Force
         Move-Item -Path "$profilepath_direct\$samaccountname.?" -Destination "$targetPP" -Force #>
 
-        #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"
-        Set-ADUser -Identity $user -clear mail,telephoneNumber,extensionAttribute2  -Enabled $False -Description $description
-        Set-ADAccountPassword -Identity $user -NewPassword $setpass -Reset
-        Remove-ADGroupMember -Identity $TargetGroup -Members $user -confirm:$false
-        Move-ADObject -Identity $user -TargetPath $disabledOU
-        # DN is invalid as user has moved but sam can be used
-        Get-ADUser $samaccountname | Rename-ADObject -NewName $samaccountname 
-        write-log "info" "$($_.name) is cleared and password randomized. Renamed to $samaccountname"
-        $WhatIfPreference = $false
-        $i++
+            #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"
+            Set-ADUser -Identity $user -Clear mail, telephoneNumber, extensionAttribute2 -Enabled $False -Description $description
+            Set-ADAccountPassword -Identity $user -NewPassword $setpass -Reset
+            Remove-ADGroupMember -Identity $TargetGroup -Members $user -Confirm:$false
+            Move-ADObject -Identity $user -TargetPath $disabledOU
+            # DN is invalid as user has moved but sam can be used
+            Get-ADUser $samaccountname | Rename-ADObject -NewName $samaccountname 
+            write-log "info" "$($_.name) is cleared and password randomized. Renamed to $samaccountname"
+            $WhatIfPreference = $false
+            $i++
         }
-     }
-     write-log "info" "$i users have been disabled and moved."
+    }
+    write-log "info" "$i users have been disabled and moved."
 }
 
 function Clear-users {
     <#
     .DESCRIPTION
     Movement of user & data
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
+    Removed AD User + Added contact
 
     .EXAMPLE
     PS> extension -name "File"
     File.txt
     #> 
-    $userBase=Search-ADAccount -UsersOnly -SearchBase $disabledOU -AccountInactive -TimeSpan $inactiveDays| where-object{$_.enabled -ne $true}
-      $userBaseDetail = $userBase | foreach-object {Get-ADUser -identity $_.SamAccountName -Properties Name, sAMAccountName, description,employeeID,employeeNumber whenChanged,whenCreated  | Select-object Name, sAMAccountName, description,employeeID,Employeenumber, whenChanged,whenCreated }
-    $userBaseDetail | ForEach-Object {New-ADObject -name "$($_.Name) [$($_.description)]" -type contact -Description $_.description -OtherAttributes @{'employeeID'="$_.employeeID"; 'info'="Relatienummer: $_.employeeID`nEmployeeNumber: $_.employeenumber`nWhenCreated: $_.whenCreated`nWhenChanged: $_.whenChanged"} -path $contactOU }
+    $userBase = Search-ADAccount -UsersOnly -SearchBase $disabledOU -AccountInactive -TimeSpan $inactiveDays | Where-Object { $_.enabled -ne $true }
+    $userBaseDetail = $userBase | ForEach-Object { Get-ADUser -Identity $_.SamAccountName -Properties Name, sAMAccountName, description, employeeID, employeeNumber whenChanged, whenCreated | Select-Object Name, sAMAccountName, description, employeeID, Employeenumber, whenChanged, whenCreated }
+    $userBaseDetail | ForEach-Object { New-ADObject -Name "$($_.Name) [$($_.description)]" -Type contact -Description $_.description -OtherAttributes @{'employeeID' = "$_.employeeID"; 'info' = "Relatienummer: $_.employeeID`nEmployeeNumber: $_.employeenumber`nWhenCreated: $_.whenCreated`nWhenChanged: $_.whenChanged" } -Path $contactOU }
 
     #$homeDriveRoot = "\server1userfolders"
     #$leaversRoot = "\server1userfoldersoldusers"
@@ -920,12 +887,12 @@ function Clear-users {
 
 
 }
-function invoke-PostCleanUp(){
+function invoke-PostCleanUp() {
     $WhatIfPreference = $simulation
     $DatetoDelete = $Date.AddDays($LogRetentionDays)
-    Get-ChildItem $path/input/*.log| Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item #delete logs older than 30 days
+    Get-ChildItem $path/input/*.log | Where-Object { $_.LastWriteTime -lt $DatetoDelete } | Remove-Item #delete logs older than 30 days
     Copy-Item "$path/input/$global:csvfile" -Destination $backupinput
-    remove-item "$path/input/$global:csvfile"
+    Remove-Item "$path/input/$global:csvfile"
     write-log "info" "Removed CSV file"
     $WhatIfPreference = $false
     write-log "info" "STOPPED SCRIPT"
