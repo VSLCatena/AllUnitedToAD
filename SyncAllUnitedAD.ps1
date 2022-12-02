@@ -774,7 +774,10 @@ Function Move-Users {
             #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"
             Set-ADUser -Identity $user -Clear mail, telephoneNumber, extensionAttribute2 -Enabled $False -Description $description
             Set-ADAccountPassword -Identity $user -NewPassword $setpass -Reset
-            Remove-ADGroupMember -Identity $TargetGroup -Members $user -Confirm:$false
+            foreach($TargetGroup in $TargetDefaultGroups){
+                Remove-ADGroupMember -Identity $TargetGroup -Members $user -Confirm:$false
+                write-log "info" "$user was removed from $TargetGroup"
+            }            
             Move-ADObject -Identity $user -TargetPath $disabledOU
             # DN is invalid as user has moved but sam can be used
             Get-ADUser $samaccountname | Rename-ADObject -NewName $samaccountname 
@@ -835,7 +838,10 @@ function invoke-PostCleanUp() {
 }
 
 Initialize-StaticVars
+Start-Transcript -path "$path/transcript_$(Get-Date -Format "yyyy-MM-dd").log" 
 Import-Config #import config
 . "$path\\SetOperations.ps1" #dot source set-operations
 Invoke-SyncAllUnitedToAD #the whole program
 Invoke-PostCleanUp #cleanup and move files
+
+Stop-trancript
