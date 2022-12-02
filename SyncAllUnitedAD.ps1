@@ -366,8 +366,8 @@ Function Get-CSVUsers
     $CSVHeaderData.split(";")
     $global:users_CSVRAW = Import-Csv -header $($CSVHeaderData.split(";")) -Delimiter ';' -encoding UTF8 -Path "$path/input/$csvfile" -Verbose
     
-    $global:users_CSV = $global:users_CSVRAW | where {$_.name2 -ne ""}
-    $global:users_CSVInvalid = $global:users_CSVRAW | where {$_.name2 -eq ""}
+    $global:users_CSV = $global:users_CSVRAW | where {$_.Naam -ne ""}
+    $global:users_CSVInvalid = $global:users_CSVRAW | where {$_.Naam -eq ""}
     write-log "info" "There are $(@($users_CSVRAW).length) users in AllUnited (excluding $(@($users_CSVInvalid).length) with invalid name)"
 }
 
@@ -416,7 +416,7 @@ Function Get-SetResults
     write-log "info" "Disabled users:`n$list_name"
     write-log "warning" "There are $(@($global:usersCreate).length) users to be created from AllUnited"
 
-    $list_name=$global:usersCreate | select-object -expandproperty name2 | sort-Object
+    $list_name=$global:usersCreate | select-object -expandproperty Naam | sort-Object
     $list_name=$list_name -join "`n" | Out-String
 
     write-log "info" "To be created users:`n$list_name"
@@ -632,18 +632,18 @@ Function Add-Users
     $i=0
     $global:usersCreate | ForEach-Object {
 
-    $EmployeeID = $_.contactid
-    $DisplayName = Remove-StringLatinCharacters($_.name2)
-    $lastname = Remove-StringLatinCharacters($_.lastname)
-    $initials = Remove-StringLatinCharacters((($_.initials).replace(".","")).replace(" ",""))
-    $pre = Remove-StringLatinCharacters($_.prelastname)
-    $GivenName = Remove-StringLatinCharacters($_.firstname)
-    $Phone = $($_.phone2).replace("-","")
+    $EmployeeID = $_.Relatienummer
+    $DisplayName = Remove-StringLatinCharacters($_.Naam)
+    $lastname = Remove-StringLatinCharacters($_.Achternaam)
+    $initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".","")).replace(" ",""))
+    $pre = Remove-StringLatinCharacters($_.Tussenvoegsel)
+    $GivenName = Remove-StringLatinCharacters($_.Voornaam)
+    $Phone = $($_.Mobiel).replace("-","")
     $Phone = $(Optimize-phonenumber($Phone)).Number
-    $EmailAddress = ($_.email).trim()
-    $Description = $_.value08
-    $Employeenumber = $_.value08
-    ExtensionAttribute2=$_.value10
+    $EmailAddress = ($_.Email).trim()
+    $Description = $_.Lidnummer
+    $Employeenumber = $_.Lidnummer
+    ExtensionAttribute2=$_.GoogleAccount
 
     $password = ([char[]]([char]32..[char]122) | sort-Object {Get-Random})[0..50] -join ''
 
@@ -763,18 +763,18 @@ Function Set-Users #account both in AU and AD
     #>    
     $i=1
     $global:usersEdit | ForEach-Object {
-        $EmployeeID = $_.contactid
-        $DisplayName = Remove-StringLatinCharacters($_.name2)
-        $Surname = Remove-StringLatinCharacters($_.lastname)
-        $Initials = Remove-StringLatinCharacters((($_.initials).replace(".","")).replace(" ",""))
-        $pre = Remove-StringLatinCharacters($_.prelastname)
-        $GivenName = Remove-StringLatinCharacters($_.firstname)
-        $OfficePhone = $($_.phone2).replace("-","")
+        $EmployeeID = $_.Relatienummer
+        $DisplayName = Remove-StringLatinCharacters($_.Naam)
+        $Surname = Remove-StringLatinCharacters($_.Achternaam)
+        $Initials = Remove-StringLatinCharacters((($_.Voorletters).replace(".","")).replace(" ",""))
+        $pre = Remove-StringLatinCharacters($_.Tussenvoegsel)
+        $GivenName = Remove-StringLatinCharacters($_.Voornaam)
+        $OfficePhone = $($_.Mobiel).replace("-","")
         $OfficePhone = $(Optimize-phonenumber($OfficePhone)).Number
-        $EmailAddress = ($_.email).trim()
-        $Description = $_.value08
-        $EmployeeNumber = $_.value08
-        $extensionAttribute2 = $_.value10
+        $EmailAddress = ($_.Email).trim()
+        $Description = $_.Lidnummer
+        $EmployeeNumber = $_.Lidnummer
+        $extensionAttribute2 = $_.GoogleAccount
 
 
         $userAD=Get-ADUser -LDAPFilter "($($primaryKeyAD)=$($_.$primarykeyCSV))" -Properties DistinguishedName, DisplayName, EmployeeID, Description, EmailAddress, OfficePhone,  Initials, GivenName, Surname, Employeenumber,extensionAttribute2
