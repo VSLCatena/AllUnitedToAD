@@ -363,9 +363,12 @@ Function Get-CSVUsers
     write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
     exit 1
     }
-    $global:users_CSV = Import-Csv -header $CSVHeaderData -Delimiter ';' -encoding default -Path "$path/input/$csvfile" -Verbose
-
-    write-log "info" "There are $(@($users_CSV).length) users in AllUnited"
+    $CSVHeaderData.split(";")
+    $global:users_CSVRAW = Import-Csv -header $($CSVHeaderData.split(";")) -Delimiter ';' -encoding UTF8 -Path "$path/input/$csvfile" -Verbose
+    
+    $global:users_CSV = $global:users_CSVRAW | where {$_.name2 -ne ""}
+    $global:users_CSVInvalid = $global:users_CSVRAW | where {$_.name2 -eq ""}
+    write-log "info" "There are $(@($users_CSVRAW).length) users in AllUnited (excluding $(@($users_CSVInvalid).length) with invalid name)"
 }
 
 Function Get-SetResults
@@ -681,7 +684,7 @@ Function Add-Users
              -EmployeeID $EmployeeID `
              -EmployeeNumber $Employeenumber `
              -AccountPassword $setpass `
-            -profilePath "$ProfilePath$sam" -homeDirectory "$HomeDirectory$sam" `
+            -homeDirectory "$HomeDirectory$sam" `
             -homeDrive $homeDrive -Enabled $enabled `
             -OtherAttributes @{mailnickname=$sam;extensionAttribute2=$extensionAttribute2}
             $WhatIfPreference = $false
@@ -865,11 +868,13 @@ Function Move-Users
         Move-Item -Path "$profilepath_direct\$samaccountname.?" -Destination "$targetPP" -Force #>
 
         #Set-ADUser -Identity $user -clear mail,telephoneNumber  -Enabled $False -Description $description -HomeDirectory "$homedirectory/_old/$samaccountname" -ProfilePath "$profilepath/_old/$samaccountname"
-            Set-ADUser -Identity $user -clear mail,telephoneNumber,extensionAttribute2  -Enabled $False -Description $description
+        Set-ADUser -Identity $user -clear mail,telephoneNumber,extensionAttribute2  -Enabled $False -Description $description
         Set-ADAccountPassword -Identity $user -NewPassword $setpass -Reset
         Remove-ADGroupMember -Identity $TargetGroup -Members $user -confirm:$false
         Move-ADObject -Identity $user -TargetPath $disabledOU
-        write-log "info" "$($_.name) is cleared and password randomized."
+        # DN is invalid as user has moved but sam can be used
+        Get-ADUser $samaccountname | Rename-ADObject -NewName $samaccountname 
+        write-log "info" "$($_.name) is cleared and password randomized. Renamed to $samaccountname"
         $WhatIfPreference = $false
         $i++
         }
