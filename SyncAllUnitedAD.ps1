@@ -152,8 +152,8 @@ Function invoke-SyncAllUnitedToAD {
     .EXAMPLE
     PS> invoke-SyncAllUnitedToAD
     #>
-    write-log "info" "STARTED SCRIPT" -disableWrite:$true
-    write-log "warning" "Status of simulation: $Simulation" -disableWrite:$true
+    write-log "info" "STARTED SCRIPT"
+    write-log "warning" "Status of simulation: $Simulation"
     Get-CSVUsers
     Get-ADUsers
     if ([math]::Abs($($global:users_CSV).Length - $($global:users_AD).Length) / $($global:users_AD).Length -ge $changeThreshold ) {
