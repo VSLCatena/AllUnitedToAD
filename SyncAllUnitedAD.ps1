@@ -782,8 +782,7 @@ Function Set-Users { #account both in AU and AD
             if (($userAD.DisplayName -ne $DisplayName) -and ($DisplayName.length -gt 0)) { $userAD.DisplayName = $DisplayName; $update += "DisplayName[$DisplayName_old => $DisplayName]," }
             if (($userAD.extensionAttribute2 -ne $extensionAttribute2) -and ($extensionAttribute2.length -gt 0)) { $userAD.extensionAttribute2 = $extensionAttribute2; $update += "Google Account[$extensionAttribute2_old => $extensionAttribute2]," }
         }
-
-
+        
         #
         else {
             write-log "info" "$DisplayName_old unable to update due too much desc/displayname/employeeid change"
@@ -792,6 +791,10 @@ Function Set-Users { #account both in AU and AD
         if ($update.Length -gt 0) {
             $WhatIfPreference = $simulation
             Set-ADUser -Instance $userAD
+            if ($userAD.Name -ne $DisplayName) {
+                write-log "Warning" "Name: $($userAD.Name) is not equal to DisplayName: $($DisplayName). Fixing this"
+                Rename-ADObject -Identity $userAD.DistinguishedName -NewName $DisplayName
+            }
             $WhatIfPreference = $false
             write-log "info" "$DisplayName_old is updated with $update"
             $i++

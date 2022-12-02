@@ -2,20 +2,18 @@
 Powershell script to convert export from membership administration to Active Directory
 
 <Hr>
+
+```
  AUTHOR  : Martijn Koetsier
 
  Based on: Marius / Hican - http://www.hican.nl - @hicannl (26-04-2012 --> 07-08-2014)
 
- DATE    : 2020-07-29
-
- EDIT    : 
-
+ DATE    : 2022-12-02
  COMMENT : This script creates new Active Directory users,
            including different kind of properties, based
            on an .csv-file.
-
- VERSION : 1.0.5
-
+ VERSION : 1.2.0
+```
 
 # Changelog
 
