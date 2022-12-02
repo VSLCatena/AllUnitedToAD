@@ -348,7 +348,7 @@ Function Get-CSVUsers {
         write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
         exit 1
     }
-    $global:users_CSVRAW = Import-Csv -Header $($CSVHeaderData.split(";")) -Delimiter ';' -Encoding UTF8 -Path "$path/input/$csvfile" -Verbose
+    $global:users_CSVRAW = Import-Csv -Header $($global:CSVHeaderData.split(";")) -Delimiter ';' -Encoding UTF8 -Path "$path/input/$csvfile" -Verbose
     
     $global:users_CSV = $global:users_CSVRAW | Where-Object { $_.Naam -ne "" }
     $global:users_CSVInvalid = $global:users_CSVRAW | Where-Object { $_.Naam -eq "" }
