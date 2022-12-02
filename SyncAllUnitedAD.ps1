@@ -844,4 +844,4 @@ Import-Config #import config
 Invoke-SyncAllUnitedToAD #the whole program
 Invoke-PostCleanUp #cleanup and move files
 
-Stop-trancript
+Stop-Transcript
