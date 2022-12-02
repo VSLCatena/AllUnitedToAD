@@ -182,7 +182,7 @@ Function write-log{
     $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$data"
     write-host($full)
     if($disableWrite -ne $true){
-        $full | Out-File $log -append
+        $full | Out-File $LogFile -append
         }
     $WhatIfPreference = $oldWIpref
 }
