@@ -118,8 +118,8 @@ Constant - Cannot be deleted or changed. Constant is valid only when you are cre
 #>
 
 function Import-Config() {
-    if (Test-Path -Path .\.env) {
-        $options = Get-Content -Path .\.env | ConvertFrom-Json
+    if (Test-Path -Path $path\.env) {
+        $options = Get-Content -Path $path\.env | ConvertFrom-Json
         foreach ($opt in $options) {
             New-Variable -Name $opt.name -Value $opt.value -Scope $opt.scope -Option $opt.option -Description $opt.description
         }
