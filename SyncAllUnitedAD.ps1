@@ -59,7 +59,7 @@ Try {
 #----------------------------------------------------------
 
 function Initialize-StaticVars(){
-    new-variable -Scope global -Option ReadOnly, AllScope -name path         -Value $(Split-Path -parent $MyInvocation.MyCommand.Definition)
+    new-variable -Scope global -Option ReadOnly, AllScope -name path         -Value $(if($PSScriptRoot -eq "") {$PSScriptRoot} else {$(get-location).Path}f)
     new-variable -Scope global -Option ReadOnly, AllScope -name date         -Value $(Get-Date)
     new-variable -Scope global -Option Constant, AllScope -name ADdn         -Value $((Get-ADDomain).DistinguishedName)
     new-variable -Scope global -Option Constant, AllScope -name dnsroot      -Value $((Get-ADDomain).DNSRoot)
@@ -163,37 +163,71 @@ Function invoke-SyncAllUnitedToAD
 
 }
 
-Function Write-Log{
+Function Write-Log {
+    [CmdletBinding()]
     Param(
-        $loglevel="INFO",
-        $data="",
-        $disableWrite=$false
+        [Parameter(Position = 0)]$loglevel = "INFO",
+        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelinebyPropertyName = $True, Position = 1)]$data
     )
-    <#
-    .DESCRIPTION
-
-    .PARAMETER Extension
-    Specifies the extension. "Txt" is the default.
-
-    .INPUTS
-    None.
-
-    .OUTPUTS
-    System.String. Add-Extension returns a string with the extension or file name.
-
-    .EXAMPLE
-    PS> extension -name "File"
-    File.txt
-    #>
-    $oldWIpref = $WhatIfPreference
-    $WhatIfPreference = $false
-    $timestamp = $(get-date -Format "yyyy-MM-dd HHmmss")
-    $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$data"
-    write-host($full)
-    if($disableWrite -ne $true){
-        $full | Out-File $log -append
+    #When you want PowerShell to process all objects coming in from the pipeline, you must next add a Process block. This block tells PowerShell to process each object coming in from the pipeline.
+    begin {
+        #before the first item in the collection.
+        $array = @()
+        $timestamp = $(Get-Date -Format "yyyy-MM-dd HHmmssffff")
+        #write-host "Begin"
+        if ($PSCmdlet.MyInvocation.ExpectingInput) { $pipeline = $true }
+    }
+    process {
+        #The PROCESS block runs once for each item in the collection.
+        if ($pipeline) {
+            $data | ForEach-Object { $array += $_ }
         }
-    $WhatIfPreference = $oldWIpref
+        #write-host "Process"
+    }
+    end {
+        #The END block also runs once, after every item in the collection has been processes.
+        if ($pipeline) {
+            $data = $array 
+        }
+        #write-host "End"
+        #new-item -path c:\temp\abc  –Verbose *>&1 | write-log -loglevel "INFO"
+
+
+        if ($data.gettype().name -in @("Object[]")) {
+            #Complex data object to log
+            $arr = @();
+            foreach ($d in $data) {
+                switch ($d.gettype().name) {
+                    VerboseRecord { $verboseValue = $($d.message) }
+                    ErrorRecord { $errorValue = $d }
+                    WarningRecord { $warningValue = $d }
+                    default { $arr += $($d | Out-String) }
+                }
+            }
+            $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t" + $verboseValue + $( if ($arr.length -gt 0) { "`n" + $arr[-1..0] } )
+            Write-Host($full)
+            $full | Out-File $log -Append
+            if ($null -ne $warningValue) { 
+                $warningString = "$($warningValue.Exception.Message) Line:$($warningValue.InvocationInfo.ScriptLineNumber), Char:$($warningValue.InvocationInfo.OffsetInLine)"
+                $WarningFull = "$timestamp [WARN]`t`t" + $warningString
+                Write-Host($WarningFull)
+                $WarningFull | Out-File $log -Append
+            }
+            if ($null -ne $errorValue) { 
+                $errorString = "$($errorValue.Exception.Message) Line:$($errorValue.InvocationInfo.ScriptLineNumber), Char:$($errorValue.InvocationInfo.OffsetInLine)"
+                $ErrorFull = "$timestamp [ERROR]`t`t" + $errorString
+                Write-Host($ErrorFull)
+                $ErrorFull | Out-File $log -Append
+            }
+
+        }
+        else { 
+            #simple message to log
+            $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t$data"
+            Write-Host($full)
+            $full | Out-File $log -Append
+        }
+    }
 }
 
 Function Get-filteredDataset{
@@ -530,6 +564,39 @@ function Remove-StringLatinCharacters
     [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
 }
 
+function set-ADParameter {
+    param(
+        [string]$parameter
+    )
+    <#
+    .DESCRIPTION
+    retrieves parameter from object and updates it with new. Change is stored in update string
+    .PARAMETER parameter
+    retrieves AD parameter
+
+    .INPUTS
+    OfficePhone
+
+    .OUTPUTS
+    
+
+    .EXAMPLE
+    OfficePhone
+        if(($userAD.OfficePhone -ne $OfficePhone) -and ($OfficePhone.length -gt 0)){ 
+        $userAD.OfficePhone = $OfficePhone
+        $update+="Phone[$OfficePhone_old => $OfficePhone]," 
+        }
+    #>
+    $var = Get-Variable $parameter #OfficePhone = 0612345678 (csv)
+    $var_old = New-Variable -PassThru -Name "$((Get-Variable $var.name).Name)_old" -Value $global:userAD[$var.name]  #OfficePhone_old=06987654321
+    if (($userAD[$var.name] -ne $var.value) -and ($var.value -gt 0)) { 
+        $global:userAD[$var.name] = $var.value
+        $global:update += "$key[$value_old => $($var.value)]," 
+    }
+    
+
+}
+
 Function Add-Users
 {
     <#
@@ -730,38 +797,7 @@ Function Set-Users #account both in AU and AD
           if(($userAD.DisplayName -ne $DisplayName) -and ($DisplayName.length -gt 0)){ $userAD.DisplayName = $DisplayName; $update+="DisplayName[$DisplayName_old => $DisplayName]," }
           if(($userAD.extensionAttribute2 -ne $extensionAttribute2) -and ($extensionAttribute2.length -gt 0)){ $userAD.extensionAttribute2 = $extensionAttribute2; $update+="Google Account[$extensionAttribute2_old => $extensionAttribute2]," }
         }
-        # functionalize this 
-        function set-adparameter {
-            param(
-                [string]$parameter
-            )
-            <#
-            .DESCRIPTION
-        
-            .PARAMETER Extension
-            Specifies the extension. "Txt" is the default.
-        
-            .INPUTS
-            None.
-        
-            .OUTPUTS
-            System.String. Add-Extension returns a string with the extension or file name.
-        
-            .EXAMPLE
-            PS> extension -name "File"
-            File.txt
-            #>
-            $var = get-variable $parameter
-            $value_old = Get-Variable $parameter"_old" | select-object -ExpandProperty value
-            $key = $var.Name
-            $value = $var.value
-            if(($userAD.$key -ne $value) -and ($value.length -gt 0)){ 
-                $global:userAD.$key = $value
-                $global:update+="$key[$value_old => $value]," 
-            }
-            
 
-        }
 
         #
         else {
