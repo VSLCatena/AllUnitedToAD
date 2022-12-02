@@ -152,8 +152,8 @@ Function invoke-SyncAllUnitedToAD {
     .EXAMPLE
     PS> invoke-SyncAllUnitedToAD
     #>
-    write-log "info" "STARTED SCRIPT"
-    write-log "warning" "Status of simulation: $Simulation"
+    write-log "info" "STARTED SCRIPT" -disableWrite:$true
+    write-log "warning" "Status of simulation: $Simulation" -disableWrite:$true
     Get-CSVUsers
     Get-ADUsers
     if ([math]::Abs($($global:users_CSV).Length - $($global:users_AD).Length) / $($global:users_AD).Length -ge $changeThreshold ) {
@@ -170,90 +170,21 @@ Function invoke-SyncAllUnitedToAD {
 
 }
 
-Function Write-Log {
-    [CmdletBinding()]
+Function write-log{
     Param(
-        [Parameter(Position = 0)]$LogLevel = "INFO",
-        [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelinebyPropertyName = $True, Position = 1)]$data
+        $loglevel="INFO",
+        $data="",
+        $disableWrite=$false
     )
-    <#
-    .DESCRIPTION
-    Add data to log with a certain loglevel
-    
-    .PARAMETER LogLevel
-    Type of Log Level
-    
-    .PARAMETER data
-    The object containing the data for log
-    
-    .INPUTS
-    None.
-
-    .OUTPUTS
-    None.
-
-    .EXAMPLE
-    PS> Write-Log -LogLevel Warning -data $data
-    #>    
-    #When you want PowerShell to process all objects coming in from the pipeline, you must next add a Process block. This block tells PowerShell to process each object coming in from the pipeline.
-    begin {
-        #before the first item in the collection.
-        $array = @()
-        $timestamp = $(Get-Date -Format "yyyy-MM-dd HHmmssffff")
-        #write-host "Begin"
-        if ($PSCmdlet.MyInvocation.ExpectingInput) { $pipeline = $true }
-    }
-    process {
-        #The PROCESS block runs once for each item in the collection.
-        if ($pipeline) {
-            $data | ForEach-Object { $array += $_ }
+    $oldWIpref = $WhatIfPreference
+    $WhatIfPreference = $false
+    $timestamp = $(get-date -Format "yyyy-MM-dd HHmmss")
+    $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$data"
+    write-host($full)
+    if($disableWrite -ne $true){
+        $full | Out-File $log -append
         }
-        #write-host "Process"
-    }
-    end {
-        #The END block also runs once, after every item in the collection has been processes.
-        if ($pipeline) {
-            $data = $array 
-        }
-        #write-host "End"
-        #new-item -path c:\temp\abc  –Verbose *>&1 | write-log -LogLevel "INFO"
-
-
-        if ($data.gettype().name -in @("Object[]")) {
-            #Complex data object to log
-            $arr = @();
-            foreach ($d in $data) {
-                switch ($d.gettype().name) {
-                    VerboseRecord { $verboseValue = $($d.message) }
-                    ErrorRecord { $errorValue = $d }
-                    WarningRecord { $warningValue = $d }
-                    default { $arr += $($d | Out-String) }
-                }
-            }
-            $full = "$timestamp [" + "$LogLevel".ToUpper() + "]`t`t" + $verboseValue + $( if ($arr.length -gt 0) { "`n" + $arr[-1..0] } )
-            Write-Host($full)
-            $full | Out-File $LogFile -Append
-            if ($null -ne $warningValue) { 
-                $warningString = "$($warningValue.Exception.Message) Line:$($warningValue.InvocationInfo.ScriptLineNumber), Char:$($warningValue.InvocationInfo.OffsetInLine)"
-                $WarningFull = "$timestamp [WARN]`t`t" + $warningString
-                Write-Host($WarningFull)
-                $WarningFull | Out-File $LogFile -Append
-            }
-            if ($null -ne $errorValue) { 
-                $errorString = "$($errorValue.Exception.Message) Line:$($errorValue.InvocationInfo.ScriptLineNumber), Char:$($errorValue.InvocationInfo.OffsetInLine)"
-                $ErrorFull = "$timestamp [ERROR]`t`t" + $errorString
-                Write-Host($ErrorFull)
-                $ErrorFull | Out-File $LogFile -Append
-            }
-
-        }
-        else { 
-            #simple message to log
-            $full = "$timestamp [" + "$LogLevel".ToUpper() + "]`t`t$data"
-            Write-Host($full)
-            $full | Out-File $LogFile -Append
-        }
-    }
+    $WhatIfPreference = $oldWIpref
 }
 
 Function Get-filteredDataset {
