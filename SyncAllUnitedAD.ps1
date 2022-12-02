@@ -65,7 +65,7 @@ function Initialize-StaticVars(){
     new-variable -Scope global -Option Constant, AllScope -name dnsroot      -Value $((Get-ADDomain).DNSRoot)
     new-variable -Scope global -Option ReadOnly, AllScope -name BackupAD     -Value $(join-path $path "\\backup\\AD_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
     new-variable -Scope global -Option ReadOnly, AllScope -name BackupInput  -Value $(join-path $path "\\backup\\Input_Backup-$(get-date -Format 'yyyy-MM-dd').csv")
-    new-variable -Scope global -Option ReadOnly, AllScope -name log          -Value $(join-path $path "\\log\\$(get-date -Format "yyyy-MM-dd").log")
+    new-variable -Scope global -Option ReadOnly, AllScope -name LogFile      -Value $(join-path $path "\\log\\$(get-date -Format "yyyy-MM-dd").log")
 }
 
 #----------------------------------------------------------
@@ -108,12 +108,13 @@ Constant - Cannot be deleted or changed. Constant is valid only when you are cre
 #>
 
 function Import-Config() {
-    if(test-path -Path .\.env){
+    if (Test-Path -Path .\.env) {
         $options = Get-Content -Path .\.env | ConvertFrom-Json
-        foreach($opt in $options) {
-            new-variable -name $opt.name -value $opt.value -scope $opt.scope -option $opt.option -description $opt.description
+        foreach ($opt in $options) {
+            New-Variable -Name $opt.name -Value $opt.value -Scope $opt.scope -Option $opt.option -Description $opt.description
         }
-    } else {
+    }
+    else {
         write-log "error" ".env not found. Script will stop!"
         Exit 1
     }
@@ -206,18 +207,18 @@ Function Write-Log {
             }
             $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t" + $verboseValue + $( if ($arr.length -gt 0) { "`n" + $arr[-1..0] } )
             Write-Host($full)
-            $full | Out-File $log -Append
+            $full | Out-File $LogFile -Append
             if ($null -ne $warningValue) { 
                 $warningString = "$($warningValue.Exception.Message) Line:$($warningValue.InvocationInfo.ScriptLineNumber), Char:$($warningValue.InvocationInfo.OffsetInLine)"
                 $WarningFull = "$timestamp [WARN]`t`t" + $warningString
                 Write-Host($WarningFull)
-                $WarningFull | Out-File $log -Append
+                $WarningFull | Out-File $LogFile -Append
             }
             if ($null -ne $errorValue) { 
                 $errorString = "$($errorValue.Exception.Message) Line:$($errorValue.InvocationInfo.ScriptLineNumber), Char:$($errorValue.InvocationInfo.OffsetInLine)"
                 $ErrorFull = "$timestamp [ERROR]`t`t" + $errorString
                 Write-Host($ErrorFull)
-                $ErrorFull | Out-File $log -Append
+                $ErrorFull | Out-File $LogFile -Append
             }
 
         }
@@ -225,7 +226,7 @@ Function Write-Log {
             #simple message to log
             $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t$data"
             Write-Host($full)
-            $full | Out-File $log -Append
+            $full | Out-File $LogFile -Append
         }
     }
 }
@@ -914,7 +915,7 @@ function invoke-PostCleanUp(){
     write-log "info" "Removed CSV file"
     $WhatIfPreference = $false
     write-log "info" "STOPPED SCRIPT"
-    Copy-Item "$log" -Destination "$path/input"
+    Copy-Item "$LogFile" -Destination "$path/input"
     Exit-PSSession
 }
 
