@@ -279,7 +279,7 @@ Function Get-CSVUsers {
         write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
         exit 1
     }
-    $global:users_CSVRAW = Import-Csv -Header $($global:CSVHeaderData.split(";")) -Delimiter ';' -Encoding UTF8 -Path "$path/input/$csvfile" -Verbose
+    $global:users_CSVRAW = Import-Csv -Delimiter ';' -Encoding UTF8 -Path "$path/input/$csvfile" -Verbose
     
     $global:users_CSV = $global:users_CSVRAW | Where-Object { $_.Naam -ne "" }
     $global:users_CSVInvalid = $global:users_CSVRAW | Where-Object { $_.Naam -eq "" }
@@ -623,14 +623,15 @@ Function Add-Users {
                     # can't be set right away (as sAMAccountName) due to the 20
                     # character restriction
                     $newdn = (Get-ADUser $sam).DistinguishedName
-
-                    Add-ADGroupMember -Identity $TargetGroup -Members $newdn
-                    write-log "info" "$sam was added to Target Group"
-
                     $WhatIfPreference = $simulation
                     Rename-ADObject -Identity $newdn -NewName $DisplayName
-                    $WhatIfPreference = $false
                     write-log "info" "Renamed $($sam) to $displayName."
+                    
+                    foreach($TargetGroup in $TargetDefaultGroups){
+                        Add-ADGroupMember -Identity $TargetGroup -Members $newdn
+                        write-log "info" "$sam was added to $TargetGroup"
+                    }
+                    $WhatIfPreference = $false
 
 
 
