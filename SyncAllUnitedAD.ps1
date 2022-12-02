@@ -35,6 +35,7 @@ Param(
 # 1.0.7    : 2020-09-23 last check of contact creation for old members
 # 1.0.8	   : 2021-06-12 keep input logs for longer time
 # 1.0.9	   : 2021-08-01 Fix officephone for change-users set
+
 # 1.0.10   : 2021-10-31 Disable profilepath 
 # 1.0.10   : 2022-01-18 Fix homedrive bug due to commented profilepath +  import with utf8
 # 1.0.11   : 2022-02-10 Exclude users without valid name2
@@ -176,7 +177,7 @@ Function invoke-SyncAllUnitedToAD
 Function Write-Log {
     [CmdletBinding()]
     Param(
-        [Parameter(Position = 0)]$loglevel = "INFO",
+        [Parameter(Position = 0)]$LogLevel = "INFO",
         [Parameter(Mandatory = $True, ValueFromPipeline = $True, ValueFromPipelinebyPropertyName = $True, Position = 1)]$data
     )
     #When you want PowerShell to process all objects coming in from the pipeline, you must next add a Process block. This block tells PowerShell to process each object coming in from the pipeline.
@@ -200,7 +201,7 @@ Function Write-Log {
             $data = $array 
         }
         #write-host "End"
-        #new-item -path c:\temp\abc  –Verbose *>&1 | write-log -loglevel "INFO"
+        #new-item -path c:\temp\abc  –Verbose *>&1 | write-log -LogLevel "INFO"
 
 
         if ($data.gettype().name -in @("Object[]")) {
@@ -214,7 +215,7 @@ Function Write-Log {
                     default { $arr += $($d | Out-String) }
                 }
             }
-            $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t" + $verboseValue + $( if ($arr.length -gt 0) { "`n" + $arr[-1..0] } )
+            $full = "$timestamp [" + "$LogLevel".ToUpper() + "]`t`t" + $verboseValue + $( if ($arr.length -gt 0) { "`n" + $arr[-1..0] } )
             Write-Host($full)
             $full | Out-File $LogFile -Append
             if ($null -ne $warningValue) { 
@@ -233,7 +234,7 @@ Function Write-Log {
         }
         else { 
             #simple message to log
-            $full = "$timestamp [" + "$loglevel".ToUpper() + "]`t`t$data"
+            $full = "$timestamp [" + "$LogLevel".ToUpper() + "]`t`t$data"
             Write-Host($full)
             $full | Out-File $LogFile -Append
         }
@@ -361,7 +362,6 @@ Function Get-CSVUsers
     {
     write-log "info" "No CSV-file found. Script will stop!" -disableWrite:$true
     exit 1
-    Exit-PSSession
     }
     $global:users_CSV = Import-Csv -header $CSVHeaderData -Delimiter ';' -encoding default -Path "$path/input/$csvfile" -Verbose
 
@@ -925,7 +925,6 @@ function invoke-PostCleanUp(){
     $WhatIfPreference = $false
     write-log "info" "STOPPED SCRIPT"
     Copy-Item "$LogFile" -Destination "$path/input"
-    Exit-PSSession
 }
 
 Initialize-StaticVars
