@@ -251,7 +251,7 @@ Function Get-ADUsers {
     PS>  Get-ADUsers
 
     #>
-    $global:users_AD = Get-ADUser -Filter * -Properties $ADHeaderData -ResultSetSize $null -SearchBase $TargetOU
+    $global:users_AD = Get-ADUser -Filter * -Properties  $($global:ADHeaderData.split(";")) -ResultSetSize $null -SearchBase $TargetOU
     $global:users_AD | Export-Csv -Path $BackupAD -Delimiter ";"
     write-log "info" "Created backup of all Users/Leden"
     write-log "info" "There are $(@($users_AD).Length) users in AD"
