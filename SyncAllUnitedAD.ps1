@@ -557,7 +557,7 @@ Function Add-Users {
         $EmailAddress = ($_.Email).trim()
         $Description = $_.Lidnummer
         $Employeenumber = $_.Lidnummer
-        ExtensionAttribute2=$_.GoogleAccount
+        $ExtensionAttribute2=$_.GoogleAccount
 
         $password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
 
