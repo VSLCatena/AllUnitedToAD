@@ -69,7 +69,7 @@ Catch {
 #----------------------------------------------------------
 
 function Initialize-StaticVars() {
-    New-Variable -Scope global -Option ReadOnly, AllScope -Name path -Value $(if ($PSScriptRoot -eq "") { $PSScriptRoot } else { $(Get-Location).Path })
+    New-Variable -Scope global -Option ReadOnly, AllScope -Name path -Value $(if ($PSScriptRoot -ne "") { $PSScriptRoot } else { $(Get-Location).Path })
     New-Variable -Scope global -Option ReadOnly, AllScope -Name date -Value $(Get-Date)
     New-Variable -Scope global -Option Constant, AllScope -Name ADdn -Value $((Get-ADDomain).DistinguishedName)
     New-Variable -Scope global -Option Constant, AllScope -Name dnsroot -Value $((Get-ADDomain).DNSRoot)
