@@ -255,7 +255,7 @@ Function Get-ADUsers {
     $global:users_AD | Export-Csv -Path $BackupAD -Delimiter ";"
     write-log "info" "Created backup of all Users/Leden"
     write-log "info" "There are $(@($users_AD).Length) users in AD"
-    write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty telephoneNumber | Group-Object length | Format-Table)"
+    write-log "info" "Status phonenumbers: `n$($global:users_AD | Select-Object -ExpandProperty telephoneNumber | Group-Object length | Format-Table | Out-String )"
 
 }
 
