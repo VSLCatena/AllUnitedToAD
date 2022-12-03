@@ -1,0 +1,5 @@
+#applcation files
+.env
+log/*
+input/*
+backup/*
