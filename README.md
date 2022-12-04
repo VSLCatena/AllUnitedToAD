@@ -17,35 +17,37 @@ Powershell script to convert export from membership administration to Active Dir
 
 # Changelog
 
-- 0.9      : 2019-03-17 Copied code
-- 0.9.1    : 2019-04-06 Removed attributes not used
-- 0.9.2    : 2019-04-13 Create username and set functions
-- 0.9.3    : 2019-04-20 Included Simulation argument
-- 0.9.4    : 2019-04-28 working concept and user to contact idea worked out
-- 0.9.5    : 2019-06-16 Move Home & profile and edit in user object when lid af
-- 0.9.6    : 2019-07-09 Error with duplicate username loop. Fixed by initializing sam_ori. Fixed extra log in output folder
-- 1.0.0    : 2020-07-02 Change primary key and optimized functions. Created backup
-- 1.0.1    : 2020-07-03 Added additional info when change of fields is performed, added https://lazywinadmin.com/2015/05/powershell-remove-diacritics-accents.html method2
-- 1.0.2    : 2020-07-03 Fix for encoding. omit -Encoding --> UTF8, -Encoding Default --> do nothing https://stackoverflow.com/questions/48947151/import-csv-export-csv-with-german-umlauts-%C3%A4-%C3%B6-%C3%BC
-- 1.0.3    : 2020-07-17 Added mailnickname for azure
-- 1.0.4    : 2020-07-28 Fix for phone numbers
-- 1.0.5    : 2020-07-29 Update fix for more numbers and debug
-- 1.0.5a   : 2020-08-06 Created generalized version for GitHub (not this one!)
-- 1.0.6    : 2020-09-08 Validation of email fixed
-- 1.0.7    : 2020-09-23 last check of contact creation for old members
-- 1.0.8	   : 2021-06-12 keep input logs for longer time
-- 1.0.9	   : 2021-08-01 Fix officephone for change-users set
-
-- 1.0.10   : 2021-10-31 Disable profilepath 
-- 1.0.10   : 2022-01-18 Fix homedrive bug due to commented profilepath +  import with utf8
-- 1.0.11   : 2022-02-10 Exclude users without valid name2
-- 1.0.12   : 2022-02-10 Rename lid-af users to $samaccountname
-- 1.0.13   : 2022-07-29 fix new header, line 203
-
-- 1.1.0    : 2021-10-01 Rewrite / cleanup code, so Github and local are identical
-- 1.1.1    : 2021-10-04 Add secondary email
-
-- 1.2.0    : 2022-02-12 Rewrite / cleanup
+| Version | Date | Changes |
+| :-- | :-- | :-- |
+| 0.9 | 2019-03-17 | Copied code |
+| 0.9.1 | 2019-04-06 | Removed attributes not used |
+| 0.9.2 | 2019-04-13 | Create username and set functions |
+| 0.9.3 | 2019-04-20 | Included Simulation argument |
+| 0.9.4 | 2019-04-28 | working concept and user to contact idea worked out |
+| 0.9.5 | 2019-06-16 | Move Home & profile and edit in user object when lid af |
+| 0.9.6 | 2019-07-09 | Error with duplicate username loop. Fixed by initializing sam_ori. Fixed extra log in output folder |
+| 1.0.0 | 2020-07-02 | Change primary key and optimized functions. Created backup |
+| 1.0.1 | 2020-07-03 | Added additional info when change of fields is performed, added https://lazywinadmin.com/2015/05/powershell-remove-diacritics-accents.html method2 |
+| 1.0.2 | 2020-07-03 | Fix for encoding. omit -Encoding --> UTF8, -Encoding Default --> do nothing https://stackoverflow.com/questions/48947151/import-csv-export-csv-with-german-umlauts-%C3%A4-%C3%B6-%C3%BC |
+| 1.0.3 | 2020-07-17 | Added mailnickname for azure |
+| 1.0.4 | 2020-07-28 | Fix for phone numbers |
+| 1.0.5 | 2020-07-29 | Update fix for more numbers and debug |
+| 1.0.5a | 2020-08-06 | Created generalized version for GitHub (not this one!) |
+| 1.0.6 | 2020-09-08 | Validation of email fixed |
+| 1.0.7 | 2020-09-23 | last check of contact creation for old members |
+| 1.0.8	 | 2021-06-12 | keep input logs for longer time |
+| 1.0.9	 | 2021-08-01 | Fix officephone for change-users set |
+| &nbsp; | &nbsp; | &nbsp; |
+| 1.0.10 | 2021-10-31 | Disable profilepath  |
+| 1.0.10 | 2022-01-18 | Fix homedrive bug due to commented profilepath +  import with utf8 |
+| 1.0.11 | 2022-02-10 | Exclude users without valid name2 |
+| 1.0.12 | 2022-02-10 | Rename lid-af users to $samaccountname |
+| 1.0.13 | 2022-07-29 | fix new header, line 203 |
+| &nbsp; | &nbsp; | &nbsp; |
+| 1.1.0 | 2021-10-01 | Rewrite / cleanup code, so Github and local are identical |
+| 1.1.1 | 2021-10-04 | Add secondary email |
+| &nbsp; | &nbsp; | &nbsp; |
+| 1.2.0 | 2022-02-12 | Rewrite / cleanup |
 
 # Requirements
 - Domain Controller
@@ -60,31 +62,44 @@ Powershell script to convert export from membership administration to Active Dir
 
 # Usage
 
-## Fill variables in script
+<img src="functionlist.jpg" width="50%" >
 
-- \$TargetOU = "OU=A,OU=B,OU=C"
-  - New users are placed here
-- \$disabledOU ="OU=A,OU=B,OU=C,$addn"
-  - Old users are placed here
-- \$contactOU = "OU=A,OU=B,OU=C,$addn"
-  - Contacts (WIP) are placed here
-- \$TargetGroup ="CN=D,OU=A,OU=B,OU=C,$addn" 
-  - Group added ánd removed from users when created / removed/disabled
+## Fill variables in .env as JSON
 
-Sync keys of csv and AD are needed to find unique account. This is performed using the relationshipnumber of Allunited that will be written to the attriubte employeeID
+```JSON
+{
+  "name": "VarName",
+  "value": "VarValues as String",
+  "option": "AllScope, Readonly",
+  "scope": "Global",
+  "description": "Some description"
+}
+```
+Sync keys of CSV and AD are needed to find an unique account. This is performed using the `unique ID of AllUnited` which will be written to the attribute `employeeID`
 
-- \$primaryKeyCSV = "contactid" 
-- \$primaryKeyAD = "employeeID" 
-- \$changeThreshold = 0.25
-  - If a change of more than 25% is going to happen, the stop the scirpt.
-
-- \$homeDrive = "H"
-- \$homeDirectory = "\\$dnsroot\DFS\Homes\"
-- \$profilePath =  "\\$dnsroot\DFS\Profiles\"
-- \#\$homeDirectory_direct = "F:\Homes" #WIP
-- \#\$profilePath_direct = "F:\Profiles" #WIP
-
-
+```
+name                   value
+----                   -----
+ADHeaderData           displayName,sn,initials,givenName,mail,telephoneNumber,description,sAMAccountName,EmployeeID,Employeenumber,ExtensionAttribute2
+ChangeThreshold        0,25 (If a change of more than 25% is going to happen, the stop the script.)
+ContactOU              OU=Contacts,dc=domain, dc=tld (Contacts are placed here)
+DisabledOU             OU=Disabled accounts, dc=domain, dc=tld (Old users are placed here)
+Enabled                true
+Expires                true
+CSVHeaderData          Some,Relevant,CSVHeader,Data,That,This,Script,Must,Use
+HomeDirectory          \$dnsroot\DFS\Homes\
+HomeDirectory_Direct   SomeLetter:\Homes
+HomeDrive              SomeLetter
+InactiveDays           365
+LogRetentionDays       -30
+PrimaryKeyAD           What AD Attribute should be the primary key (excluding system attributes like samAccountName)
+PrimaryKeyCSV          What CSV Attribute should be the primary key
+ProfilePath            \$dnsroot\dfs\Profiles\
+ProfilePath_Direct     SomeLetter:\Profiles
+TargetDefaultGroups    {CN=Group1,OU=Groups,dc=domain, dc=tld} (Group added and removed from users when created / removed/disabled)
+TargetOU               OU=TargetOU,dc=domain, dc=tld  (New users are placed here)
+IgnoreUsersDisplayName THIS_USER_MUST_BE_IGNORED
+```
 
 ## Start script using start.bat:
-- powershell.exe {Location to files}\AllUnitedToAD\SyncAllUnitedAD.ps1 -simulation:\$false -interactive:\$false
+- `powershell.exe -NoProfile -ExecutionPolicy bypass $PSScriptRoot\AllUnitedToAD\SyncAllUnitedAD.ps1 -simulation:\$false -interactive:\$false`
