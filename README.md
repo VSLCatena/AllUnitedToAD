@@ -62,7 +62,7 @@ Powershell script to convert export from membership administration to Active Dir
 
 # Usage
 
-<img src="functionlist.jpg" width="50%" >
+<img src="functionlist.jpg" width="85%" >
 
 ## Fill variables in .env as JSON
 
