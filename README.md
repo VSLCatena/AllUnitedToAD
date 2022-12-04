@@ -8,11 +8,11 @@ Powershell script to convert export from membership administration to Active Dir
 
  Based on: Marius / Hican - http://www.hican.nl - @hicannl (26-04-2012 --> 07-08-2014)
 
- DATE    : 2022-12-02
+ DATE    : 2022-12-04
  COMMENT : This script creates new Active Directory users,
            including different kind of properties, based
            on an .csv-file.
- VERSION : 1.2.0
+ VERSION : 1.2.1
 ```
 
 # Changelog
@@ -47,7 +47,8 @@ Powershell script to convert export from membership administration to Active Dir
 | 1.1.0 | 2021-10-01 | Rewrite / cleanup code, so Github and local are identical |
 | 1.1.1 | 2021-10-04 | Add secondary email |
 | &nbsp; | &nbsp; | &nbsp; |
-| 1.2.0 | 2022-02-12 | Rewrite / cleanup |
+| 1.2.0 | 2022-12-02 | Rewrite / cleanup |
+| 1.2.1 | 2022-12-04 | Fix PSScriptAnalyzer Stuff |
 
 # Requirements
 - Domain Controller
