@@ -844,7 +844,7 @@ function invoke-PostCleanUp() {
 }
 
 Initialize-StaticVar
-Start-Transcript -path "$path/transcript_$(Get-Date -Format "yyyy-MM-dd").log"
+Start-Transcript -path "$path/log/transcript_$(Get-Date -Format "yyyy-MM-dd").log"
 Import-Config #import config
 . "$path\\SetOperations.ps1" #dot source set-operations
 Invoke-SyncAllUnitedToAD #the whole program
