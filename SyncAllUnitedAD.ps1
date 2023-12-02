@@ -14,7 +14,7 @@ Param(
 # COMMENT : This script creates new Active Directory users,
 #           including different kind of properties, based
 #           on a CSV-file.
-# VERSION : 1.2.1
+# VERSION : 1.3.0
 ###########################################################
 #
 # Changelog
@@ -51,6 +51,7 @@ Param(
 
 # 1.2.0    : 2022-12-02 Rewrite / cleanup
 # 1.2.1    : 2022-12-04 Fix PSScriptanalyser stuff
+# 1.3.0    : 2023-12-02 Fix issues with paths and DNS Suffix
 
 
 # ERROR REPORTING ALL
@@ -77,7 +78,7 @@ function Initialize-StaticVar() {
     New-Variable -Scope global -Option ReadOnly, AllScope -Name path -Value $(if ($PSScriptRoot -ne "") { $PSScriptRoot } else { $(Get-Location).Path })
     New-Variable -Scope global -Option ReadOnly, AllScope -Name date -Value $(Get-Date)
     New-Variable -Scope global -Option Constant, AllScope -Name ADdn -Value $((Get-ADDomain).DistinguishedName)
-    New-Variable -Scope global -Option Constant, AllScope -Name dnsroot -Value $((Get-ADDomain).DNSRoot)
+    New-Variable -Scope global -Option Constant, AllScope -Name UPNSuffix -Value $((Get-ADForest).UPNsuffixes[0])
     New-Variable -Scope global -Option ReadOnly, AllScope -Name BackupAD -Value $(Join-Path $path "\\backup\\AD_Backup-$(Get-Date -Format 'yyyy-MM-dd').csv")
     New-Variable -Scope global -Option ReadOnly, AllScope -Name BackupInput -Value $(Join-Path $path "\\backup\\Input_Backup-$(Get-Date -Format 'yyyy-MM-dd').csv")
     New-Variable -Scope global -Option ReadOnly, AllScope -Name LogFile -Value $(Join-Path $path "\\log\\$(Get-Date -Format "yyyy-MM-dd").log")
@@ -184,7 +185,10 @@ Function Write-Data2Log{
     $oldWIpref = $WhatIfPreference
     $WhatIfPreference = $false
     $timestamp = $(get-date -Format "yyyy-MM-dd HHmmss")
-    $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$data"
+    $stack = (Get-PSCallStack | select -skip 1 -first 1)
+    $StackString = "[$($stack.FunctionName)[$($stack.Scriptlinenumber)]"
+
+    $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$stackString`t$data"
     write-host($full)
     if($disableWrite -ne $true){
         $full | Out-File $LogFile -append
@@ -562,7 +566,8 @@ Function Add-User {
         $EmailAddress = ($_.Email).trim()
         $Description = $_.Lidnummer
         $Employeenumber = $_.Lidnummer
-        $ExtensionAttribute2=$_.GoogleAccount
+        if($_.GoogleAccount -ne $null) { $ExtensionAttribute2=$_.GoogleAccount } else { $ExtensionAttribute2=$null}
+        $enabled = $true
 
         $password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
 
@@ -575,7 +580,8 @@ Function Add-User {
         }
         Else { # Valid Full, given, lastname
 
-            $location = $TargetOU + ",$($addn)"  # Set the target OU
+            #$location = $TargetOU + ",$($addn)"  # Set the target OU
+            $location = $TargetOU  # Set the target OU
             $sam = get-username -new $true -firstname $givenname -prelastname $pre -lastname $lastname
             Try {
                 $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" -ErrorVariable e # get any user with saameacocuntanem,
@@ -589,19 +595,40 @@ Function Add-User {
                 # if the names change, make sure to change it below as well.
                 $setpass = ConvertTo-SecureString -AsPlainText $password -Force
 
+                $OtherAttributes = @{mailnickname = $sam}
+                if($extensionAttribute2 -ne $null){ $OtherAttributes += @{ExtensionAttribute2 = $extensionAttribute2 } }
+                $splattedADUserproperties=@{
+                         DisplayName = $DisplayName
+                         GivenName = $GivenName
+                         Initials = $initials
+                         Surname = "$pre$lastname"
+                         Description = $Description
+                         EmailAddress = $EmailAddress
+                         OfficePhone = $phone
+                         UserPrincipalName = ($sam + '@' + $UPNSuffix)
+                         EmployeeId = $EmployeeID
+                         EmployeeNumber = $Employeenumber
+                         AccountPassword = $setpass
+                         HomeDirectory = "$HomeDirectory$sam"
+                         HomeDrive = $homeDrive
+                         Enabled = $enabled
+                         OtherAttributes = $OtherAttributes
+                }
+
                 Try {
                     Write-Data2Log "info" "Creating user : $($sam)"
                     $WhatIfPreference = $simulation
-                    New-ADUser $sam -DisplayName $DisplayName `
-                        -GivenName $GivenName -Initials $initials -Surname $pre$lastname `
-                        -Description $Description -EmailAddress $EmailAddress -OfficePhone $phone `
-                        -UserPrincipalName ($sam + "@" + $dnsroot) `
-                        -EmployeeID $EmployeeID `
-                        -EmployeeNumber $Employeenumber `
-                        -AccountPassword $setpass `
-                        -HomeDirectory "$HomeDirectory$sam" `
-                        -HomeDrive $homeDrive -Enabled $enabled `
-                        -OtherAttributes @{mailnickname = $sam; extensionAttribute2 = $extensionAttribute2 }
+                    New-ADUser $sam @splattedADUserproperties
+                    # New-ADUser $sam -DisplayName $DisplayName `
+                        # -GivenName $GivenName -Initials $initials -Surname $pre$lastname `
+                        # -Description $Description -EmailAddress $EmailAddress -OfficePhone $phone `
+                        # -UserPrincipalName ($sam + "@" + $UPNSuffix) `
+                        # -EmployeeID $EmployeeID `
+                        # -EmployeeNumber $Employeenumber `
+                        # -AccountPassword $setpass `
+                        # -HomeDirectory "$HomeDirectory$sam" `
+                        # -HomeDrive $homeDrive -Enabled $enabled `
+                        # -OtherAttributes @{mailnickname = $sam; extensionAttribute2 = $extensionAttribute2 }
                     $WhatIfPreference = $false
 
                     Write-Data2Log "info" "Created new user : $($sam)"
@@ -633,7 +660,7 @@ Function Add-User {
                     Write-Data2Log "info" "Renamed $($sam) to $displayName."
 
                     foreach($TargetGroup in $TargetDefaultGroups){
-                        Add-ADGroupMember -Identity $TargetGroup -Members $newdn
+                        Add-ADGroupMember -Identity "$TargetGroup" -Members $newdn
                         Write-Data2Log "info" "$sam was added to $TargetGroup"
                     }
                     $WhatIfPreference = $false
