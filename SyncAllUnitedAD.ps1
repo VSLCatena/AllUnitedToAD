@@ -52,7 +52,7 @@ Param(
 # 1.2.0    : 2022-12-02 Rewrite / cleanup
 # 1.2.1    : 2022-12-04 Fix PSScriptanalyser stuff
 # 1.3.0    : 2023-12-02 Fix issues with paths and DNS Suffix
-
+# 2.0.0.   : 2024-05-31 Convert to MgGraph
 
 # ERROR REPORTING ALL
 Set-StrictMode -Version latest
@@ -62,10 +62,12 @@ Set-StrictMode -Version latest
 #----------------------------------------------------------
 
 Try {
-    Import-Module ActiveDirectory -ErrorAction Stop
+    Install-Module Microsoft.Graph -Scope CurrentUser
+    Import-Module Microsoft.Graph
+    Connect-MgGraph -Scopes "User.ReadWrite.All"
 }
 Catch {
-    Write-Data2Log "error" "ActiveDirectory Module couldn't be loaded. Script will stop!"
+    Write-Data2Log "error" "GraphAPI Module couldn't be loaded. Script will stop!"
     Exit 1
 }
 
@@ -161,8 +163,9 @@ Function invoke-SyncAllUnitedToAD {
     Write-Data2Log "info" "STARTED SCRIPT" -disableWrite:$true
     Write-Data2Log "warning" "Status of simulation: $Simulation" -disableWrite:$true
     Get-CSVUserDataset
-    Get-ADUserDataset
-    if ([math]::Abs($($global:users_CSV).Length - $($global:users_AD).Length) / $($global:users_AD).Length -ge $changeThreshold ) {
+    Get-AzureADUserDataset
+    # Get-ADUserDataset
+    if ([math]::Abs($($global:users_CSV).Length - $($global:users_AzureAD).Length) / $($global:users_AzureAD).Length -ge $changeThreshold ) {
         Write-Data2Log "warning" "Change in users is over $changeThreshold. Due to safety reasons, this script will stop."
         if (!$($interactive)) { exit 1 }
     }
@@ -268,6 +271,32 @@ Function Get-ADUserDataset {
 
 }
 
+Function Get-AzureADUserDataset {
+    <#
+    .DESCRIPTION
+    Retrieves all the users from AzureAD with some specific boundaries
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    File. Exports to local disk for backup
+    $global:users_AzureAD containing all the data
+
+    .EXAMPLE
+    PS>  Get-AzureADUserDataset
+
+    #>
+    $global:users_AzureAD = Get-MgUser -Filter "accountEnabled eq true" -Properties $($global:ADHeaderData.split(";")) -ResultSetSize $null
+    $global:users_AzureAD | Export-Csv -Path $BackupAzureAD -Delimiter ";"
+    Write-Data2Log "info" "Created backup of all Users/Leden"
+    Write-Data2Log "info" "There are $(@($users_AzureAD).Length) users in AzureAD"
+    Write-Data2Log "info" "Status phonenumbers: `n$($global:users_AzureAD | Select-Object -ExpandProperty telephoneNumber | Group-Object length | Format-Table | Out-String )"
+
+}
+
+
+
 Function Get-CSVUserDataset {
     <#
     .DESCRIPTION
@@ -312,26 +341,26 @@ Function Get-SetResult {
 
     #>
 
-    $temp_set_AD = $users_AD | ForEach-Object { $_.$primaryKeyAD } #get column of AD field
-    New-Variable -Name set_AD -Value ($temp_set_AD | Sort-Object -Unique) #get only unique values
-    Write-Data2Log "warning" "There are $(@($set_AD).length) users with unique LIDNUMMER in AD"
+    $temp_set_AzureAD = $users_AzureAD | ForEach-Object { $_.$primaryKeyAD } #get column of AD field
+    New-Variable -Name set_AzureAD -Value ($temp_set_AD | Sort-Object -Unique) #get only unique values
+    Write-Data2Log "warning" "There are $(@($set_AzureAD).length) users with unique LIDNUMMER in AzureAD"
 
     $temp_set_CSV = $users_CSV | ForEach-Object { $_.$primaryKeyCSV } #get column of CSV field
     New-Variable -Name set_CSV -Value ($temp_set_CSV | Sort-Object -Unique) #get only unique values
     Write-Data2Log "warning" "There are $(@($set_CSV).length) users with unique LIDNUMMER in AllUnited"
 
 
-    $set_edit = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Intersection
-    $set_move = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Difference-LeftMinusRight
-    $set_create = Get-SetOperationResult -Left $set_AD -Right $set_CSV -OperationType Difference-RightMinusLeft
+    $set_edit = Get-SetOperationResult -Left $set_AzureAD -Right $set_CSV -OperationType Intersection
+    $set_move = Get-SetOperationResult -Left $set_AzureAD -Right $set_CSV -OperationType Difference-LeftMinusRight
+    $set_create = Get-SetOperationResult -Left $set_AzureAD -Right $set_CSV -OperationType Difference-RightMinusLeft
 
     Write-Data2Log "info" "All users from AD $(@($set_AD).Length) - $(@($set_move).length) Remove + $(@($set_create).length) Create = $(@($set_edit).length) edit. Cross checking every set with AD / CSV:"
 
     $global:usersEdit   = Get-filteredDataset -dataset $users_CSV -set $set_edit   -key $primaryKeyCSV
-    $global:usersMove   = Get-filteredDataset -dataset $users_AD  -set $set_move   -key $primaryKeyAD
+    $global:usersMove   = Get-filteredDataset -dataset $users_AD  -set $set_move   -key $primaryKeyAzureAD
     $global:usersCreate = Get-filteredDataset -dataset $users_CSV -set $set_create -key $primaryKeyCSV
 
-    Write-Data2Log "warning" "There are $(@($global:usersEdit).length) users in AD eligable for edit."
+    Write-Data2Log "warning" "There are $(@($global:usersEdit).length) users in AzureAD eligable for edit."
     Write-Data2Log "warning" "There are $(@($global:usersMove).length) users to be disabled"
     $list_name = $global:usersMove | Select-Object -ExpandProperty displayName | Sort-Object  #because list of DN
     $list_name = $list_name -join "`n" | Out-String
@@ -503,7 +532,7 @@ function Remove-StringLatinCharacter {
     [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
 }
 
-function set-ADParameter {
+function set-AzureADParameter {
     param(
         [string]$parameter
     )
@@ -511,7 +540,7 @@ function set-ADParameter {
     .DESCRIPTION
     retrieves parameter from object and updates it with new. Change is stored in update string
     .PARAMETER parameter
-    retrieves AD parameter
+    retrieves AzureAD parameter
 
     .INPUTS
     OfficePhone
@@ -527,9 +556,9 @@ function set-ADParameter {
         }
     #>
     $var = Get-Variable $parameter #OfficePhone = 0612345678 (csv)
-    $var_old = New-Variable -PassThru -Name "$((Get-Variable $var.name).Name)_old" -Value $global:userAD[$var.name]  #OfficePhone_old=06987654321
-    if (($userAD[$var.name] -ne $var.value) -and ($var.value -gt 0)) {
-        $global:userAD[$var.name] = $var.value
+    $var_old = New-Variable -PassThru -Name "$((Get-Variable $var.name).Name)_old" -Value $global:userAzureAD[$var.name]  #OfficePhone_old=06987654321
+    if (($userAzureAD[$var.name] -ne $var.value) -and ($var.value -gt 0)) {
+        $global:userAzureAD[$var.name] = $var.value
         $global:update += "$key[$value_old => $($var.value)],"
     }
 
