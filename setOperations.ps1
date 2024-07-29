@@ -134,11 +134,11 @@ function Get-SetOperationResult
         #-----------
         if ($OperationType -eq 'Difference-LeftMinusRight')
         {
-            $result = $Left | ?{-not ($Right -contains $_)}
+            $result = $Left | Where-Object {-not ($Right -contains $_)}
         }
         if ($OperationType -eq 'Difference-RightMinusLeft')
         {
-            $result = $Right | ?{-not ($Left -contains $_)}
+            $result = $Right | Where-Object {-not ($Left -contains $_)}
         }
          
         #-----------
@@ -147,12 +147,12 @@ function Get-SetOperationResult
         if ($OperationType -eq 'ComplementLeft')
         {
             $result = Compare-Object $Left $Right -PassThru -IncludeEqual |                  # union
-                                ?{-not ($Left -contains $_)}
+                                Where-Object {-not ($Left -contains $_)}
         }
         if ($OperationType -eq 'ComplementRight')
         {
             $result = Compare-Object $Left $Right -PassThru -IncludeEqual |                  # union
-                                ?{-not ($Right -contains $_)}
+                                Where-Object {-not ($Right -contains $_)}
         }
          
         Write-Output $result
