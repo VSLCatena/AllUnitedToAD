@@ -161,52 +161,40 @@ Function Write-Data2Log{
     $WhatIfPreference = $oldWIpref
 }
 
-Function Get-filteredDataset {
-    param(
-        [object]$dataset,
-        [object]$set = @(),
-        [string]$key
+function Get-FilteredDataset {
+    param (
+        [Parameter(Mandatory)]
+        [object[]]$Dataset,
+
+        [Parameter(Mandatory)]
+        [object[]]$Set = @(),
+
+        [Parameter(Mandatory)]
+        [string]$Key
     )
     <#
     .DESCRIPTION
-    Compares an array of objects (with $key as key) against list of keys ($set) and returns objects that are intersecting.
+    Filters a dataset to include only objects where the specified key matches values in a provided subset.
 
-    .PARAMETER dataset
-    Specifies the main dataset
+    .PARAMETER Dataset
+    The main dataset to filter.
 
-    .PARAMETER set
-    Specifies a certain subset of the main dataset with values corresponding to $key
+    .PARAMETER Set
+    A subset of values to filter the dataset by.
 
-    .PARAMETER key
-    Specifies primary key on which the comparison must be done
-    .INPUTS
-    None.
-
-    .OUTPUTS
-    filteredDataset
+    .PARAMETER Key
+    The key property in the dataset to compare against the subset.
 
     .EXAMPLE
-    PS> Get-filteredDataset $users_CSV $set_edit $primaryKeyCSV
-
+    PS> Get-FilteredDataset -Dataset $users -Set $setValues -Key "Id"
     #>
-    $dataset_size = @($dataset).length
-    $set_size = @($set).length
-    Write-Data2Log "info" "There are $dataset_size items that are validated against $set_size"
-    # filter dataset with list
 
+    # Convert the Set to a HashSet for faster lookups
+    $setHash = [System.Collections.Generic.HashSet[string]]::new($Set)
+    Write-Host "There are $($Dataset.Count) items validated against $($Set.Count) items."
 
-
-    $filteredDataset = @()
-    $dataset | ForEach-Object {
-        $data = $_
-        $set | ForEach-Object {
-            $item = $_
-            if ($data.$($key) -eq $item) {
-                $filteredDataset += $data
-            }
-        }
-    }
-    return $filteredDataset
+    # Use Where-Object to filter the Dataset
+    $Dataset | Where-Object { $setHash.Contains($_.$Key) }
 }
 
 Function Get-ADUserDataset {
