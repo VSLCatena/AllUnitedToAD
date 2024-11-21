@@ -15,8 +15,11 @@
     - 2019-06-16 Move Home & profile and edit in user object when lid af
 - 0.9.6
     - 2019-07-09 Error with duplicate username loop. Fixed by initializing sam_ori. Fixed extra log in output folder
+    - 
 <hr>
+
 ## Version 1
+
 - 1.0.0
     - 2020-07-02 Change primary key and optimized functions. Created backup
 - 1.0.1
@@ -63,6 +66,8 @@
 - 1.3.0
     - 2023-12-02 Fix issues with paths and DNS Suffix
 <hr>
+
 ## Version 2
+
 - 2.0.0.
     - 2024-05-31 Convert to MgGraph
