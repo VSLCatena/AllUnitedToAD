@@ -868,6 +868,78 @@ Function Set-User { #account both in AU and AD
 
 }
 
+
+Function NewSet-User { # Azure AD account
+    <#
+    .DESCRIPTION
+    Create or update a user in Azure AD based on global:usersEdit.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    Modified Azure AD User.
+
+    .EXAMPLE
+    PS> Set-User
+    #>
+
+    $i = 0
+    $global:usersEdit | ForEach-Object {
+        $EmployeeID = $_.Relatienummer
+        $DisplayName = Remove-StringLatinCharacter($_.Naam)
+        $Surname = Remove-StringLatinCharacter($_.Achternaam)
+        $Initials = Remove-StringLatinCharacter((($_.Voorletters).replace(".", "")).replace(" ", ""))
+        $Pre = Remove-StringLatinCharacter($_.Tussenvoegsel)
+        $GivenName = Remove-StringLatinCharacter($_.Voornaam)
+        $OfficePhone = $(Optimize-phonenumber($_.Mobiel.replace("-", ""))).Number
+        $EmailAddress = ($_.Email).Trim()
+        $Description = $_.Lidnummer
+        $EmployeeNumber = $_.Lidnummer
+        $ExtensionAttribute2 = $_.GoogleAccount
+
+        # Fetch existing user from Azure AD
+        $userAAD = Get-MgUser -Filter "userPrincipalName eq '$EmailAddress'" -Property DisplayName, MobilePhone, Description, EmployeeId, GivenName, Surname, JobTitle, ExtensionProperty
+
+        if ($null -eq $userAAD) {
+            Write-Data2Log "info" "User $EmailAddress does not exist in Azure AD. Creating..."
+            New-MgUser -AccountEnabled $true -DisplayName $DisplayName -GivenName $GivenName `
+                -Surname $Surname -MobilePhone $OfficePhone -Mail $EmailAddress `
+                -OtherMails @($EmailAddress) -EmployeeId $EmployeeID `
+                -JobTitle $Description -AdditionalProperties @{"extensionAttribute2" = $ExtensionAttribute2}
+
+            Write-Data2Log "info" "User $DisplayName created successfully."
+            $i++
+            return
+        }
+
+        # Collect changes to apply
+        $update = @{}
+        if ($userAAD.DisplayName -ne $DisplayName) { $update["DisplayName"] = $DisplayName }
+        if ($userAAD.GivenName -ne $GivenName) { $update["GivenName"] = $GivenName }
+        if ($userAAD.Surname -ne $("$Pre $Surname").Trim()) { $update["Surname"] = $("$Pre $Surname").Trim() }
+        if ($userAAD.MobilePhone -ne $OfficePhone) { $update["MobilePhone"] = $OfficePhone }
+        if ($userAAD.Mail -ne $EmailAddress) { $update["Mail"] = $EmailAddress }
+        if ($userAAD.EmployeeId -ne $EmployeeID) { $update["EmployeeId"] = $EmployeeID }
+        if ($userAAD.JobTitle -ne $Description) { $update["JobTitle"] = $Description }
+        if ($userAAD.AdditionalProperties["extensionAttribute2"] -ne $ExtensionAttribute2) {
+            $update["extensionAttribute2"] = $ExtensionAttribute2
+        }
+
+        if ($update.Count -gt 0) {
+            Write-Data2Log "info" "Updating user $DisplayName with changes: $($update.Keys -join ', ')"
+            Set-MgUser -UserId $userAAD.Id -AdditionalProperties $update
+            Write-Data2Log "info" "$DisplayName updated successfully."
+            $i++
+        } else {
+            Write-Data2Log "info" "No updates required for $DisplayName."
+        }
+    }
+
+    Write-Data2Log "info" "$i users were processed."
+}
+
+
 Function Move-User {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute("PSAvoidUsingConvertToSecureStringWithPlainText", "")]
     <#
