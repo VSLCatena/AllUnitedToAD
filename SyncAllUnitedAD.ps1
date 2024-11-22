@@ -550,7 +550,7 @@ Function Add-User {
         $EmailAddress = ($_.Email).trim()
         $Description = $_.Lidnummer
         $Employeenumber = $_.Lidnummer
-        if($_.GoogleAccount -ne $null) { $ExtensionAttribute2=$_.GoogleAccount } else { $ExtensionAttribute2=$null}
+        if($null -ne $_.GoogleAccount) { $ExtensionAttribute2=$_.GoogleAccount } else { $ExtensionAttribute2=$null}
         $enabled = $true
 
         $password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
@@ -580,7 +580,7 @@ Function Add-User {
                 $setpass = ConvertTo-SecureString -AsPlainText $password -Force
 
                 $OtherAttributes = @{mailnickname = $sam}
-                if($extensionAttribute2 -ne $null){ $OtherAttributes += @{ExtensionAttribute2 = $extensionAttribute2 } }
+                if($null -ne $extensionAttribute2){ $OtherAttributes += @{ExtensionAttribute2 = $extensionAttribute2 } }
                 $splattedADUserproperties=@{
                          DisplayName = $DisplayName
                          GivenName = $GivenName
