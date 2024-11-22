@@ -170,7 +170,7 @@ Function Write-Data2Log{
     $oldWIpref = $WhatIfPreference
     $WhatIfPreference = $false
     $timestamp = $(get-date -Format "yyyy-MM-dd HHmmss")
-    $stack = (Get-PSCallStack | select -skip 1 -first 1)
+    $stack = (Get-PSCallStack | select-object -skip 1 -first 1)
     $StackString = "[$($stack.FunctionName)[$($stack.Scriptlinenumber)]"
 
     $full = "$timestamp ["+"$loglevel".ToUpper()+ "]`t`t$stackString`t$data"
@@ -187,7 +187,7 @@ function Get-FilteredDataset {
         [object[]]$Dataset,
 
         [Parameter(Mandatory)]
-        [object[]]$Set = @(),
+        [object[]]$Set,
 
         [Parameter(Mandatory)]
         [string]$Key
@@ -211,7 +211,7 @@ function Get-FilteredDataset {
 
     # Convert the Set to a HashSet for faster lookups
     $setHash = [System.Collections.Generic.HashSet[string]]::new($Set)
-    Write-Host "There are $($Dataset.Count) items validated against $($Set.Count) items."
+    Write-Data2Log "There are $($Dataset.Count) items validated against $($Set.Count) items."
 
     # Use Where-Object to filter the Dataset
     $Dataset | Where-Object { $setHash.Contains($_.$Key) }
@@ -312,7 +312,7 @@ Function Get-SetResult {
     #>
 
     $temp_set_AzureAD = $users_AzureAD | ForEach-Object { $_.$primaryKeyAD } #get column of AD field
-    New-Variable -Name set_AzureAD -Value ($temp_set_AD | Sort-Object -Unique) #get only unique values
+    New-Variable -Name set_AzureAD -Value ($temp_set_AzureAD | Sort-Object -Unique) #get only unique values
     Write-Data2Log "warning" "There are $(@($set_AzureAD).length) users with unique LIDNUMMER in AzureAD"
 
     $temp_set_CSV = $users_CSV | ForEach-Object { $_.$primaryKeyCSV } #get column of CSV field
@@ -327,7 +327,7 @@ Function Get-SetResult {
     Write-Data2Log "info" "All users from AD $(@($set_AD).Length) - $(@($set_move).length) Remove + $(@($set_create).length) Create = $(@($set_edit).length) edit. Cross checking every set with AD / CSV:"
 
     $global:usersEdit   = Get-filteredDataset -dataset $users_CSV -set $set_edit   -key $primaryKeyCSV
-    $global:usersMove   = Get-filteredDataset -dataset $users_AD  -set $set_move   -key $primaryKeyAzureAD
+    $global:usersMove   = Get-filteredDataset -dataset $users_AzureAD  -set $set_move   -key $primaryKeyAzureAD
     $global:usersCreate = Get-filteredDataset -dataset $users_CSV -set $set_create -key $primaryKeyCSV
 
     Write-Data2Log "warning" "There are $(@($global:usersEdit).length) users in AzureAD eligable for edit."
@@ -392,7 +392,7 @@ function Get-Username {
         try {
             $exists = Get-ADUser -Filter {sAMAccountName -eq $username} -ErrorAction Stop
         } catch {
-            Write-Host "Username '$username' is available."
+             Write-Data2Log "Username '$username' is available."
             return $username
         }
 
@@ -400,7 +400,7 @@ function Get-Username {
             $counter++
             $username = "$baseUsername$counter"
         } else {
-            Write-Warning "Username '$username' already exists."
+            Write-Data2Log "Username '$username' already exists."
             return $username
         }
     }
@@ -770,7 +770,7 @@ Function ImprovedAdd-User {
                 Write-Data2Log "info" "$SamAccountName added to group $Group."
             }
         } catch {
-            Write-Data2Log "error" "Failed to create user $SamAccountName: $($_.Exception.Message)"
+            Write-Data2Log "error" "Failed to create user ${SamAccountName}: $($_.Exception.Message)"
         }
 
         $i++
