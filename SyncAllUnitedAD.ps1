@@ -85,6 +85,26 @@ ReadOnly - Can be deleted. Cannot be changed, except by using the Force paramete
 Private - The variable is available only in the current scope.
 AllScope - The variable is copied to any new scopes that are created.
 Constant - Cannot be deleted or changed. Constant is valid only when you are creating a variable. You cannot change the options of an existing variable to Constant.
+
+new-mguser
+AccountEnabled: Specificeert of het account is ingeschakeld.
+DisplayName: Naam van de gebruiker die wordt weergegeven.
+GivenName: Voornaam van de gebruiker.
+Surname: Achternaam van de gebruiker.
+UserPrincipalName: Gebruikersnaam in UPN-formaat (bijv. e-mail).
+MailNickname: Alias van de gebruiker.
+PasswordProfile: Wachtwoordinstellingen, zoals wachtwoord en verplicht wijzigen bij eerste inlog.
+OtherMails: Alternatieve e-mailadressen.
+Department: Afdeling van de gebruiker.
+JobTitle: Functietitel.
+UsageLocation: Locatiecode (bijv. "US").
+MobilePhone: Mobiel nummer.
+OfficeLocation: Kantoorlocatie.
+StreetAddress, City, State, Country: Adresgegevens.
+OnPremisesImmutableId: Voor synchronisatie met on-premises AD.
+BusinessPhones: Zakelijke telefoonnummers.
+Roles: Toegewezen rollen.
+
 #>
 
 function Import-Config() {
