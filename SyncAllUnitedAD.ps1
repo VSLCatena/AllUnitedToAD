@@ -406,67 +406,58 @@ function Get-Username {
     }
 }
 
-function Optimize-phonenumber($no) {
+function Optimize-PhoneNumber {
+    param(
+        [string]$Number
+    )
     <#
+    .SYNOPSIS
+    Optimizes a phone number based on basic formatting rules.
+
     .DESCRIPTION
-    #Count Name                      Group
-    #----- ----                      -----
-    #  895 10                        {0612345678...}
-    #    2 13                        {0035712345678, 0013012345678}
-    #    4 14                        {00441234567891}
-    #    3 9                         {061234567 }
-    #    2 11                        {03212345679}
-    #    4 12                        {031612345678, 040123456789, 031687654321}
-    #    1 15                        {004912345678901}
+    Converts Dutch phone numbers starting with '0' to international format '+31' 
+    and validates length based on E.164 standards.
+
     .PARAMETER Number
-    A phone number
+    Input phone number to be optimized.
 
     .INPUTS
-    None.
+    String. A phone number in various formats.
 
     .OUTPUTS
-    System.String. Optimized phone number
+    PSCustomObject. Contains the optimized phone number and a type.
 
     .EXAMPLE
-    PS> Optimize-phonenumber -no 0612345678
-    +31612345678
+    PS> Optimize-PhoneNumber -Number 0612345678
+    Number     Type
+    ------     ----
+    +31612345678 Valid
     #>
 
-    $type = $null
-    $result = @()
-    $var = [string]$no
-    $var = $var.trim() #remove spaces
-    $len = $var.Length
-    #number can be between 8-15 digits. https://en.wikipedia.org/wiki/E.164
-    If ($len -eq 10) { #10=perfect 0612345678 071 1234567
-        $type = $null
-        $res = $var -replace '^0', '+31'
+    # Clean and trim the input
+    $cleanNumber = $Number.Trim() -replace '\s+', ''
+
+    # Determine length and format the number
+    switch ($cleanNumber.Length) {
+        {$_ -eq 10 -and $cleanNumber -match '^0'} {
+            $optimizedNumber = $cleanNumber -replace '^0', '+31'
+            $type = "Valid"
+        }
+        {$_ -ge 8 -and $_ -le 15} {
+            $optimizedNumber = '+' + ($cleanNumber -replace '^0+', '')
+            $type = "Valid_Check"
+        }
+        default {
+            $optimizedNumber = $cleanNumber
+            $type = "No_Change_$($_.Length)"
+        }
     }
 
-    Else { #wtf
-        $res = $var
-        $type = "No_Change_$len"
-
-        #If ($($var -replace '^0+', '').Substring(0,1) -eq '6')
-        #{
-        #    #possible mobile phone number
-        #    $type = "check Mob PhoneNo:$len"
-        #    $res="+31$($var -replace '^0+', '')"
-        #}
-        #Else {
-        #    $type = "check PhoneNo:$len"
-        #    $res="+$($var -replace '^0+', '')"
-        #}
+    # Return as PSCustomObject
+    [PSCustomObject]@{
+        Number = $optimizedNumber
+        Type   = $type
     }
-
-
-    $result += [PSCustomObject] @{
-        Number = $res;
-        Type   = $type;
-    }
-    return $result
-
-
 }
 
 function Remove-StringLatinCharacter {
