@@ -343,75 +343,65 @@ Function Get-SetResult {
     Write-Data2Log "info" "To be created users:`n$list_name"
 }
 
-Function get-username {
+function Get-Username {
     param(
-        [boolean]$new,
-        [string]$firstname,
-        [string]$prelastname,
-        [string]$lastname
+        [bool]$New,
+        [string]$FirstName,
+        [string]$PreLastName,
+        [string]$LastName
     )
     <#
+    .SYNOPSIS
+    Generates a username based on given name components and checks for duplicates in Active Directory.
+
     .DESCRIPTION
-    Creates username based on name, prelastname and lastname and removes weird chars
+    This function creates a username by combining the first letter of the first name with the
+    concatenated and sanitized pre-lastname and lastname. It ensures the username is unique in Active Directory.
 
-    .PARAMETER new
-    Boolean, if this is for a completely new user
+    .PARAMETER New
+    Indicates if the username is for a new user.
 
-    .PARAMETER firstname
-    Firstname string
+    .PARAMETER FirstName
+    First name of the user.
 
-    .PARAMETER prelastname
-    Letters between first and last name
+    .PARAMETER PreLastName
+    Optional string between the first and last name.
 
-    .PARAMETER lastname
-    Lastname String
+    .PARAMETER LastName
+    Last name of the user.
 
     .INPUTS
     None.
 
     .OUTPUTS
-    System.String. New usersname
+    System.String. The generated username.
 
     .EXAMPLE
-    PS> get-username $true $givenname $pre $lastname
-
+    PS> Get-Username -New $true -FirstName "John" -PreLastName "de" -LastName "Doe"
     #>
-    $j = 0
-    $sam_ori = $null
-    $p_lastname = $prelastname.ToLower() + $lastname.ToLower()
-    $p_lastname = $p_lastname.Replace(",", "")
-    $p_lastname = $p_lastname.Replace(".", "")
-    $p_lastname = $p_lastname.Replace(" ", "")
-    $p_lastname = $p_lastname.Replace("'", "")
-    $p_lastname = $p_lastname.Replace("-", "")
+    
+    # Sanitize and prepare the base username
+    $sanitizedLastName = ($PreLastName + $LastName).ToLower() -replace "[^a-z]", ""
+    $baseUsername = ($FirstName.Substring(0, 1).ToLower() + $sanitizedLastName).Substring(0, [math]::Min(20, ($FirstName.Length + $sanitizedLastName.Length)))
 
-    $fullname = $firstname.substring(0, 1).ToLower() + $p_lastname
+    # Check for uniqueness in Active Directory
+    $username = $baseUsername
+    $counter = 0
 
-    If ($fullname.length -ge 20) {
-        $fullname = $fullname.substring(0, 20)
-    }
-    $k = $true
-    $sam = $fullname
-
-    while ($k -eq $true) {
-        Try { $exists = Get-ADUser -LDAPFilter "(sAMAccountName=$sam)" -Properties useraccountcontrol }
-        Catch { Write-Warning "$sam could not be found.." } #if not found,gives error
-        If ($exists) {
-            if ($new) {
-                Write-Data2Log "warning" "$sam already exist"
-                if (!$sam_ori) { $sam_ori = $sam }
-                $j = $j + 1
-                $sam = $sam_ori + $j
-            }
-            if (!$new) {
-                $k = $false
-                return($sam)
-            }
+    while ($true) {
+        try {
+            $exists = Get-ADUser -Filter {sAMAccountName -eq $username} -ErrorAction Stop
+        } catch {
+            Write-Host "Username '$username' is available."
+            return $username
         }
-        If (!$exists) {
-            Write-Data2Log "info" "$sam is new username"
-            $k = $false
-            return($sam)
+
+        if ($New) {
+            $counter++
+            $username = "$baseUsername$counter"
+        } else {
+            Write-Warning "Username '$username' already exists."
+            return $username
         }
     }
 }
