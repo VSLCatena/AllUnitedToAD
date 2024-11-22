@@ -666,6 +666,121 @@ Function Add-User {
     Write-Data2Log "info" "$i users were created."
 }
 
+
+Function ImprovedAdd-User {
+    <#
+    .DESCRIPTION
+    Creates users in AD based on the global `$usersCreate` variable.
+
+    .INPUTS
+    None.
+
+    .OUTPUTS
+    None.
+
+    .EXAMPLE
+    PS> Add-User
+    Processes each user from `$usersCreate` and adds them to Active Directory.
+    #>
+
+    $i = 0
+
+    foreach ($user in $global:usersCreate) {
+        $EmployeeID      = $user.Relatienummer
+        $DisplayName     = Remove-StringLatinCharacter($user.Naam)
+        $LastName        = Remove-StringLatinCharacter($user.Achternaam)
+        $Initials        = Remove-StringLatinCharacter($user.Voorletters -replace '\.|\s', '')
+        $Pre             = Remove-StringLatinCharacter($user.Tussenvoegsel)
+        $GivenName       = Remove-StringLatinCharacter($user.Voornaam)
+        $Phone           = Optimize-PhoneNumber($user.Mobiel -replace '-', '').Number
+        $EmailAddress    = $user.Email.Trim()
+        $Description     = $user.Lidnummer
+        $EmployeeNumber  = $user.Lidnummer
+        $ExtensionAttribute2 = if ($user.GoogleAccount) { $user.GoogleAccount } else { $null }
+        $Enabled         = $true
+
+        $Password = ([char[]]([char]32..[char]122) | Sort-Object { Get-Random })[0..50] -join ''
+
+        if ([string]::IsNullOrWhiteSpace($DisplayName) -or [string]::IsNullOrWhiteSpace($GivenName) -or [string]::IsNullOrWhiteSpace($LastName)) {
+            Write-Data2Log "error" "Invalid name details. Skipping user $($DisplayName), $($Description)."
+            continue
+        }
+
+        $Location = $TargetOU
+        $SamAccountName = Get-Username -New $true -Firstname $GivenName -PreLastName $Pre -LastName $LastName
+
+        try {
+            $Exists = Get-ADUser -Filter "sAMAccountName -eq '$SamAccountName'" -ErrorAction Stop
+        } catch {
+            $Exists = $null
+        }
+
+        if ($Exists) {
+            Write-Data2Log "error" "User $SamAccountName already exists."
+            continue
+        }
+
+        $SecurePassword = ConvertTo-SecureString -AsPlainText $Password -Force
+
+        $OtherAttributes = @{ mailNickname = $SamAccountName }
+        if ($ExtensionAttribute2) {
+            $OtherAttributes['extensionAttribute2'] = $ExtensionAttribute2
+        }
+
+        $SplattedADUserProperties = @{
+            DisplayName      = $DisplayName
+            GivenName        = $GivenName
+            Initials         = $Initials
+            Surname          = "$Pre$LastName"
+            Description      = $Description
+            EmailAddress     = $EmailAddress
+            OfficePhone      = $Phone
+            UserPrincipalName = "$SamAccountName@$UPNSuffix"
+            EmployeeID       = $EmployeeID
+            EmployeeNumber   = $EmployeeNumber
+            AccountPassword  = $SecurePassword
+            HomeDirectory    = "$HomeDirectory$SamAccountName"
+            HomeDrive        = $HomeDrive
+            Enabled          = $Enabled
+            OtherAttributes  = $OtherAttributes
+        }
+
+        try {
+            Write-Data2Log "info" "Creating user: $SamAccountName"
+            $WhatIfPreference = $simulation
+            New-ADUser @SplattedADUserProperties
+            $WhatIfPreference = $false
+
+            $DistinguishedName = (Get-ADUser -Identity $SamAccountName).DistinguishedName
+
+            if ([adsi]::Exists("LDAP://$Location")) {
+                $WhatIfPreference = $simulation
+                Move-ADObject -Identity $DistinguishedName -TargetPath $Location
+                $WhatIfPreference = $false
+                Write-Data2Log "info" "Moved $SamAccountName to $Location."
+            } else {
+                Write-Data2Log "error" "Target OU $Location does not exist."
+            }
+
+            Rename-ADObject -Identity $DistinguishedName -NewName $DisplayName
+            Write-Data2Log "info" "Renamed $SamAccountName to $DisplayName."
+
+            foreach ($Group in $TargetDefaultGroups) {
+                Add-ADGroupMember -Identity $Group -Members $DistinguishedName
+                Write-Data2Log "info" "$SamAccountName added to group $Group."
+            }
+        } catch {
+            Write-Data2Log "error" "Failed to create user $SamAccountName: $($_.Exception.Message)"
+        }
+
+        $i++
+    }
+
+    Write-Data2Log "info" "$i users processed."
+}
+
+
+
 Function Set-User { #account both in AU and AD
     <#
     .DESCRIPTION
