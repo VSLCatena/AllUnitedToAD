@@ -483,37 +483,41 @@ function Remove-StringLatinCharacter {
     [Text.Encoding]::ASCII.GetString([Text.Encoding]::GetEncoding("Cyrillic").GetBytes($String))
 }
 
-function set-AzureADParameter {
+function Set-AzureADParameter {
     param(
-        [string]$parameter
+        [string]$Parameter
     )
     <#
+    .SYNOPSIS
+    Updates an Azure AD user parameter if it has changed and logs the update.
+
     .DESCRIPTION
-    retrieves parameter from object and updates it with new. Change is stored in update string
-    .PARAMETER parameter
-    retrieves AzureAD parameter
+    Compares the current value of an Azure AD user parameter with a new value. If they differ, the parameter is updated, 
+    and the change is logged in a global update string.
+
+    .PARAMETER Parameter
+    The name of the parameter to be updated.
 
     .INPUTS
-    OfficePhone
+    None.
 
     .OUTPUTS
-
+    None.
 
     .EXAMPLE
-    OfficePhone
-        if(($userAD.OfficePhone -ne $OfficePhone) -and ($OfficePhone.length -gt 0)){
-        $userAD.OfficePhone = $OfficePhone
-        $update+="Phone[$OfficePhone_old => $OfficePhone],"
-        }
+    PS> Set-AzureADParameter -Parameter "OfficePhone"
+    Updates the OfficePhone parameter in the Azure AD user object.
     #>
-    $var = Get-Variable $parameter #OfficePhone = 0612345678 (csv)
-    $var_old = New-Variable -PassThru -Name "$((Get-Variable $var.name).Name)_old" -Value $global:userAzureAD[$var.name]  #OfficePhone_old=06987654321
-    if (($userAzureAD[$var.name] -ne $var.value) -and ($var.value -gt 0)) {
-        $global:userAzureAD[$var.name] = $var.value
-        $global:update += "$key[$value_old => $($var.value)],"
+
+    # Retrieve the new value and current (old) value
+    $newValue = Get-Variable -Name $Parameter -ErrorAction Stop
+    $oldValue = $global:userAzureAD[$newValue.Name]
+
+    # Compare and update if necessary
+    if ($oldValue -ne $newValue.Value -and $newValue.Value.Length -gt 0) {
+        $global:userAzureAD[$newValue.Name] = $newValue.Value
+        $global:update += "$($newValue.Name)[$oldValue => $($newValue.Value)],"
     }
-
-
 }
 
 Function Add-User {
